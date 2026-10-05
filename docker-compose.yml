@@ -1,0 +1,40 @@
+name: vantage
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: vantage
+      POSTGRES_PASSWORD: vantage
+      POSTGRES_DB: vantage
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vantage -d vantage']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      target: dev
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://vantage:vantage@db:5432/vantage
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - npm-cache:/home/node/.npm
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  node_modules:
+  npm-cache:
