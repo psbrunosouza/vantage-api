@@ -9,6 +9,8 @@ import { type Env, envSchema } from './env.js';
 import { HealthModule } from './health/health.module.js';
 import { JourneysModule } from './journeys/journeys.module.js';
 import { LinksModule } from './links/links.module.js';
+import { MembersModule } from './members/members.module.js';
+import { PlaySessionsModule } from './play-sessions/play-sessions.module.js';
 import { ResourcesModule } from './resources/resources.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { StructuresModule } from './structures/structures.module.js';
@@ -33,6 +35,8 @@ import { StructuresModule } from './structures/structures.module.js';
     StructuresModule,
     ResourcesModule,
     LinksModule,
+    PlaySessionsModule,
+    MembersModule,
   ],
 })
 export class AppModule {}

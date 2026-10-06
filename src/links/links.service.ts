@@ -5,21 +5,36 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, getTableColumns, inArray, ne, or } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  inArray,
+  isNull,
+  ne,
+  or,
+} from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
+import { MembersService } from '../members/members.service.js';
 import { resources } from '../resources/resources.schema.js';
 import { structures } from '../structures/structures.schema.js';
 import type { SetLinksDto } from './dto/set-links.dto.js';
 import { type Link, links } from './links.schema.js';
-import { relationColumns, tableRowIds } from './relation-columns.js';
+import {
+  fieldRelation,
+  relationColumns,
+  tableRowIds,
+} from './relation-columns.js';
 
 @Injectable()
 export class LinksService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
     private readonly journeysService: JourneysService,
+    private readonly membersService: MembersService,
   ) {}
 
   async findAll(userId: string, journeyId: string): Promise<Link[]> {
@@ -39,7 +54,7 @@ export class LinksService {
     sourceId: string,
     dto: SetLinksDto,
   ): Promise<Link[]> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.membersService.ensureEditor(userId, journeyId, sourceId);
 
     return this.db.transaction(async (tx) => {
       const [source] = await tx
@@ -53,20 +68,27 @@ export class LinksService {
       if (!source) throw new NotFoundException('Resource not found.');
 
       const field = source.fields.find((entry) => entry.id === dto.fieldId);
-      const column = field
-        ? relationColumns(field).find((entry) => entry.id === dto.columnId)
-        : undefined;
+      const relation =
+        field === undefined
+          ? undefined
+          : dto.columnId === null
+            ? fieldRelation(field)
+            : relationColumns(field).find((entry) => entry.id === dto.columnId)
+                ?.relation;
 
-      if (!column) throw new NotFoundException('Relation column not found.');
+      if (!relation) throw new NotFoundException('Relation not found.');
 
-      if (!tableRowIds(source.values, dto.fieldId).includes(dto.rowId)) {
+      if (
+        dto.rowId !== null &&
+        !tableRowIds(source.values, dto.fieldId).includes(dto.rowId)
+      ) {
         throw new NotFoundException('Row not found.');
       }
 
       const targetIds = [...new Set(dto.targetIds)];
 
-      if (column.relation.targets === 'one' && targetIds.length > 1) {
-        throw new BadRequestException('This relation takes one target per row.');
+      if (relation.targets === 'one' && targetIds.length > 1) {
+        throw new BadRequestException('This relation takes one target.');
       }
 
       if (targetIds.length > 0) {
@@ -77,7 +99,7 @@ export class LinksService {
           .where(
             and(
               inArray(resources.id, targetIds),
-              eq(resources.structureId, column.relation.structureId),
+              eq(resources.structureId, relation.structureId),
               eq(structures.journeyId, journeyId),
             ),
           );
@@ -87,7 +109,12 @@ export class LinksService {
         }
       }
 
-      if (column.relation.sources === 'one' && targetIds.length > 0) {
+      if (
+        relation.sources === 'one' &&
+        dto.rowId !== null &&
+        dto.columnId !== null &&
+        targetIds.length > 0
+      ) {
         const [taken] = await tx
           .select({ id: links.id })
           .from(links)
@@ -107,8 +134,10 @@ export class LinksService {
       const cell = and(
         eq(links.sourceId, sourceId),
         eq(links.fieldId, dto.fieldId),
-        eq(links.rowId, dto.rowId),
-        eq(links.columnId, dto.columnId),
+        dto.rowId === null ? isNull(links.rowId) : eq(links.rowId, dto.rowId),
+        dto.columnId === null
+          ? isNull(links.columnId)
+          : eq(links.columnId, dto.columnId),
       );
 
       const current = await tx.select().from(links).where(cell);

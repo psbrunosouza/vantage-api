@@ -10,6 +10,10 @@ import { structures } from '../structures/structures.schema.js';
 
 export type ResourceValues = Record<string, unknown>;
 
+export const RESOURCE_CAPABILITIES = ['actor'] as const;
+
+export const ACTOR = 'actor';
+
 export const resources = pgTable(
   'resources',
   {
@@ -19,6 +23,7 @@ export const resources = pgTable(
       .references(() => structures.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     values: jsonb('values').$type<ResourceValues>().notNull().default({}),
+    capability: text('capability', { enum: RESOURCE_CAPABILITIES }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

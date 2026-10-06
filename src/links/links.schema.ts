@@ -16,8 +16,8 @@ export const links = pgTable(
       .notNull()
       .references(() => resources.id, { onDelete: 'cascade' }),
     fieldId: text('field_id').notNull(),
-    rowId: text('row_id').notNull(),
-    columnId: text('column_id').notNull(),
+    rowId: text('row_id'),
+    columnId: text('column_id'),
     targetId: uuid('target_id')
       .notNull()
       .references(() => resources.id, { onDelete: 'cascade' }),
@@ -26,13 +26,15 @@ export const links = pgTable(
       .defaultNow(),
   },
   (table) => [
-    unique().on(
-      table.sourceId,
-      table.fieldId,
-      table.rowId,
-      table.columnId,
-      table.targetId,
-    ),
+    unique()
+      .on(
+        table.sourceId,
+        table.fieldId,
+        table.rowId,
+        table.columnId,
+        table.targetId,
+      )
+      .nullsNotDistinct(),
     index().on(table.targetId),
   ],
 );

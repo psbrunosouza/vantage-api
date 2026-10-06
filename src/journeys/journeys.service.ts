@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -16,6 +17,7 @@ import {
   journeyMembers,
   journeys,
 } from './journeys.schema.js';
+import { pickMemberColor } from './member-colors.js';
 
 @Injectable()
 export class JourneysService {
@@ -33,11 +35,18 @@ export class JourneysService {
   }
 
   async create(ownerId: string, dto: CreateJourneyDto): Promise<Journey> {
-    const [journey] = await this.db
-      .insert(journeys)
-      .values({ ...dto, ownerId })
-      .returning();
-    return journey;
+    return this.db.transaction(async (tx) => {
+      const [journey] = await tx
+        .insert(journeys)
+        .values({ ...dto, ownerId, narratorId: ownerId })
+        .returning();
+      await tx.insert(journeyMembers).values({
+        journeyId: journey.id,
+        userId: ownerId,
+        color: pickMemberColor([]),
+      });
+      return journey;
+    });
   }
 
   async update(
@@ -46,6 +55,23 @@ export class JourneysService {
     dto: UpdateJourneyDto,
   ): Promise<Journey> {
     await this.ensureOwner(userId, id);
+
+    if (dto.narratorId) {
+      const [member] = await this.db
+        .select({ userId: journeyMembers.userId })
+        .from(journeyMembers)
+        .where(
+          and(
+            eq(journeyMembers.journeyId, id),
+            eq(journeyMembers.userId, dto.narratorId),
+          ),
+        );
+
+      if (!member) {
+        throw new BadRequestException('The narrator must be in the journey.');
+      }
+    }
+
     const [journey] = await this.db
       .update(journeys)
       .set(dto)
@@ -80,9 +106,9 @@ export class JourneysService {
   async ensureVisible(
     userId: string,
     id: string,
-  ): Promise<{ ownerId: string }> {
+  ): Promise<{ ownerId: string; narratorId: string | null }> {
     const [journey] = await this.db
-      .select({ ownerId: journeys.ownerId })
+      .select({ ownerId: journeys.ownerId, narratorId: journeys.narratorId })
       .from(journeys)
       .where(and(eq(journeys.id, id), this.visibleTo(userId)));
 

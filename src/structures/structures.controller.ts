@@ -58,6 +58,16 @@ export class StructuresController {
     return this.structuresService.update(session.user.id, journeyId, id, dto);
   }
 
+  @Post(':id/prune')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  prune(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.structuresService.prune(session.user.id, journeyId, id);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(

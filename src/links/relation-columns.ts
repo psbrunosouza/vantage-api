@@ -3,6 +3,8 @@ import type { ResourceValues } from '../resources/resources.schema.js';
 import type { StructureField } from '../structures/structure-field.js';
 
 const TABLE = 'table';
+const CHOICE = 'choice';
+const PICKERS = [CHOICE, 'boxes'];
 
 const cardinality = z.enum(['one', 'many']);
 
@@ -18,16 +20,17 @@ const relationColumnSchema = z.object({
 
 const tableConfigSchema = z.object({ columns: z.array(z.unknown()) });
 
+const pickerConfigSchema = z.object({
+  relation: z.object({ structureId: z.string().min(1) }),
+});
+
 const tableValueSchema = z.object({
   rows: z.array(z.object({ id: z.string() })),
 });
 
 export type RelationColumn = z.infer<typeof relationColumnSchema>;
 
-export interface RelationKey {
-  fieldId: string;
-  columnId: string;
-}
+export type Relation = RelationColumn['relation'];
 
 export function relationColumns(field: StructureField): RelationColumn[] {
   if (field.type !== TABLE) return [];
@@ -41,28 +44,35 @@ export function relationColumns(field: StructureField): RelationColumn[] {
   });
 }
 
-export function staleRelations(
-  before: readonly StructureField[],
-  after: readonly StructureField[],
-): RelationKey[] {
-  const kept = new Map(
-    after.flatMap((field) =>
-      relationColumns(field).map((column) => [
-        keyOf(field.id, column.id),
-        column.relation.structureId,
-      ]),
-    ),
-  );
+export function fieldRelation(field: StructureField): Relation | undefined {
+  if (!PICKERS.includes(field.type)) return undefined;
 
-  return before.flatMap((field) =>
-    relationColumns(field)
-      .filter(
-        (column) =>
-          kept.get(keyOf(field.id, column.id)) !==
-          column.relation.structureId,
-      )
-      .map((column) => ({ fieldId: field.id, columnId: column.id })),
-  );
+  const config = pickerConfigSchema.safeParse(field['chips']);
+  if (!config.success) return undefined;
+
+  return {
+    structureId: config.data.relation.structureId,
+    targets: field.type === CHOICE ? 'one' : 'many',
+    sources: 'many',
+  };
+}
+
+function relationsOf(field: StructureField): [string, string][] {
+  const relation = fieldRelation(field);
+  const columns = relationColumns(field).map((column): [string, string] => [
+    keyOf(field.id, column.id),
+    column.relation.structureId,
+  ]);
+
+  return relation === undefined
+    ? columns
+    : [...columns, [keyOf(field.id, null), relation.structureId]];
+}
+
+export function relationTargets(
+  fields: readonly StructureField[],
+): Map<string, string> {
+  return new Map(fields.flatMap(relationsOf));
 }
 
 export function tableRowIds(values: ResourceValues, fieldId: string): string[] {
@@ -70,6 +80,6 @@ export function tableRowIds(values: ResourceValues, fieldId: string): string[] {
   return table.success ? table.data.rows.map((row) => row.id) : [];
 }
 
-export function keyOf(fieldId: string, id: string): string {
-  return `${fieldId}/${id}`;
+export function keyOf(fieldId: string, id: string | null): string {
+  return `${fieldId}/${id ?? ''}`;
 }

@@ -1,10 +1,11 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
 import { links } from '../links/links.schema.js';
-import { staleRelations } from '../links/relation-columns.js';
+import { keyOf, relationTargets } from '../links/relation-columns.js';
 import { resources } from '../resources/resources.schema.js';
 import type { CreateStructureDto } from './dto/create-structure.dto.js';
 import type { UpdateStructureDto } from './dto/update-structure.dto.js';
@@ -46,64 +47,76 @@ export class StructuresService {
     dto: UpdateStructureDto,
   ): Promise<Structure> {
     await this.journeysService.ensureOwner(userId, journeyId);
+    const [structure] = await this.db
+      .update(structures)
+      .set(dto)
+      .where(this.inJourney(journeyId, id))
+      .returning();
 
-    return this.db.transaction(async (tx) => {
-      const [current] = await tx
+    if (!structure) throw new NotFoundException('Structure not found.');
+    return structure;
+  }
+
+  async prune(userId: string, journeyId: string, id: string): Promise<void> {
+    await this.journeysService.ensureOwner(userId, journeyId);
+
+    await this.db.transaction(async (tx) => {
+      const [structure] = await tx
         .select({ fields: structures.fields })
         .from(structures)
         .where(this.inJourney(journeyId, id));
 
-      if (!current) throw new NotFoundException('Structure not found.');
+      if (!structure) throw new NotFoundException('Structure not found.');
 
-      const [structure] = await tx
-        .update(structures)
-        .set(dto)
-        .where(eq(structures.id, id))
-        .returning();
+      const fieldIds = new Set(structure.fields.map((field) => field.id));
+      const owned = await tx
+        .select({ id: resources.id, values: resources.values })
+        .from(resources)
+        .where(eq(resources.structureId, id));
 
-      const kept = new Set(dto.fields?.map((field) => field.id));
-      const removed = dto.fields
-        ? current.fields.filter((field) => !kept.has(field.id))
-        : [];
+      for (const resource of owned) {
+        const entries = Object.entries(resource.values);
+        const kept = entries.filter(([fieldId]) => fieldIds.has(fieldId));
 
-      if (removed.length > 0) {
-        const ids = sql.join(
-          removed.map((field) => sql`${field.id}`),
-          sql`, `,
-        );
-        await tx
-          .update(resources)
-          .set({ values: sql`${resources.values} - array[${ids}]::text[]` })
-          .where(eq(resources.structureId, id));
+        if (kept.length < entries.length) {
+          await tx
+            .update(resources)
+            .set({ values: Object.fromEntries(kept) })
+            .where(eq(resources.id, resource.id));
+        }
       }
 
-      const stale = dto.fields
-        ? staleRelations(current.fields, dto.fields)
-        : [];
-
-      if (stale.length > 0) {
-        await tx.delete(links).where(
-          and(
-            inArray(
-              links.sourceId,
-              tx
-                .select({ id: resources.id })
-                .from(resources)
-                .where(eq(resources.structureId, id)),
-            ),
-            or(
-              ...stale.map((key) =>
-                and(
-                  eq(links.fieldId, key.fieldId),
-                  eq(links.columnId, key.columnId),
-                ),
-              ),
-            ),
+      const relations = relationTargets(structure.fields);
+      const targets = alias(resources, 'targets');
+      const current = await tx
+        .select({
+          id: links.id,
+          fieldId: links.fieldId,
+          columnId: links.columnId,
+          structureId: targets.structureId,
+        })
+        .from(links)
+        .innerJoin(targets, eq(targets.id, links.targetId))
+        .where(
+          inArray(
+            links.sourceId,
+            tx
+              .select({ id: resources.id })
+              .from(resources)
+              .where(eq(resources.structureId, id)),
           ),
         );
-      }
+      const stale = current
+        .filter(
+          (link) =>
+            relations.get(keyOf(link.fieldId, link.columnId)) !==
+            link.structureId,
+        )
+        .map((link) => link.id);
 
-      return structure;
+      if (stale.length > 0) {
+        await tx.delete(links).where(inArray(links.id, stale));
+      }
     });
   }
 

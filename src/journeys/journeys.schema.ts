@@ -21,6 +21,9 @@ export const journeys = pgTable(
     color: text('color'),
     mainDie: text('main_die'),
     avatarUrl: text('avatar_url'),
+    narratorId: uuid('narrator_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -41,6 +44,7 @@ export const journeyMembers = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    color: text('color').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

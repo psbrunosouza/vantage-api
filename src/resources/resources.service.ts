@@ -3,6 +3,8 @@ import { and, asc, eq, getTableColumns, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
+import { memberResources } from '../members/members.schema.js';
+import { MembersService } from '../members/members.service.js';
 import { links } from '../links/links.schema.js';
 import { keyOf, tableRowIds } from '../links/relation-columns.js';
 import {
@@ -14,7 +16,7 @@ import { structures } from '../structures/structures.schema.js';
 import type { CreateResourceDto } from './dto/create-resource.dto.js';
 import type { UpdateResourceDto } from './dto/update-resource.dto.js';
 import { parseResourceValues } from './resource-values.js';
-import { type Resource, resources } from './resources.schema.js';
+import { ACTOR, type Resource, resources } from './resources.schema.js';
 
 const BUCKET = 'images';
 const IMAGE = 'image';
@@ -24,6 +26,7 @@ export class ResourcesService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
     private readonly journeysService: JourneysService,
+    private readonly membersService: MembersService,
     private readonly imageStorage: ImageStorageService,
   ) {}
 
@@ -70,7 +73,9 @@ export class ResourcesService {
     id: string,
     dto: UpdateResourceDto,
   ): Promise<Resource> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await (dto.capability === undefined
+      ? this.membersService.ensureEditor(userId, journeyId, id)
+      : this.journeysService.ensureOwner(userId, journeyId));
     const fields = await this.fieldsOf(journeyId, id);
     const values =
       dto.values === undefined
@@ -84,7 +89,14 @@ export class ResourcesService {
         .where(eq(resources.id, id))
         .returning();
 
+      if (dto.capability !== undefined && dto.capability !== ACTOR) {
+        await tx
+          .delete(memberResources)
+          .where(eq(memberResources.resourceId, id));
+      }
+
       if (values !== undefined) {
+        const fieldIds = new Set(fields.map((field) => field.id));
         const kept = new Set(
           fields.flatMap((field) =>
             tableRowIds(values, field.id).map((rowId) =>
@@ -97,7 +109,12 @@ export class ResourcesService {
           .from(links)
           .where(eq(links.sourceId, id));
         const stale = current
-          .filter((link) => !kept.has(keyOf(link.fieldId, link.rowId)))
+          .filter(
+            (link) =>
+              link.rowId !== null &&
+              fieldIds.has(link.fieldId) &&
+              !kept.has(keyOf(link.fieldId, link.rowId)),
+          )
           .map((link) => link.id);
 
         if (stale.length > 0) {
@@ -116,7 +133,7 @@ export class ResourcesService {
     fieldId: string,
     file: ImageFile | undefined,
   ): Promise<{ url: string }> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.membersService.ensureEditor(userId, journeyId, id);
     const fields = await this.fieldsOf(journeyId, id);
 
     if (!fields.some((field) => field.id === fieldId && field.type === IMAGE)) {
