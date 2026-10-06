@@ -7,5 +7,6 @@ import { StructuresService } from './structures.service.js';
   imports: [JourneysModule],
   controllers: [StructuresController],
   providers: [StructuresService],
+  exports: [StructuresService],
 })
 export class StructuresModule {}

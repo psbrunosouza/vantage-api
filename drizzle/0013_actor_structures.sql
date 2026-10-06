@@ -1,0 +1,5 @@
+ALTER TABLE "structures" ADD COLUMN "capability" text;--> statement-breakpoint
+UPDATE "structures" SET "capability" = 'actor' WHERE "id" IN (SELECT DISTINCT ON ("structures"."journey_id") "structures"."id" FROM "structures" INNER JOIN "resources" ON "resources"."structure_id" = "structures"."id" WHERE "resources"."capability" = 'actor' ORDER BY "structures"."journey_id", "structures"."created_at");--> statement-breakpoint
+DELETE FROM "member_resources" USING "resources", "structures" WHERE "member_resources"."resource_id" = "resources"."id" AND "resources"."structure_id" = "structures"."id" AND "structures"."capability" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "structures_actor_unique" ON "structures" USING btree ("journey_id") WHERE "structures"."capability" = 'actor';--> statement-breakpoint
+ALTER TABLE "resources" DROP COLUMN "capability";

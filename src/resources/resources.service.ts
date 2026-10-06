@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, asc, eq, getTableColumns, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
@@ -12,11 +17,12 @@ import {
   ImageStorageService,
 } from '../storage/image-storage.service.js';
 import type { StructureField } from '../structures/structure-field.js';
-import { structures } from '../structures/structures.schema.js';
+import { ACTOR, structures } from '../structures/structures.schema.js';
+import type { CreateCharacterDto } from './dto/create-character.dto.js';
 import type { CreateResourceDto } from './dto/create-resource.dto.js';
 import type { UpdateResourceDto } from './dto/update-resource.dto.js';
 import { parseResourceValues } from './resource-values.js';
-import { ACTOR, type Resource, resources } from './resources.schema.js';
+import { type Resource, resources } from './resources.schema.js';
 
 const BUCKET = 'images';
 const IMAGE = 'image';
@@ -67,15 +73,67 @@ export class ResourcesService {
     return resource;
   }
 
+  async createCharacter(
+    userId: string,
+    journeyId: string,
+    dto: CreateCharacterDto,
+  ): Promise<Resource> {
+    await this.journeysService.ensureOwner(userId, journeyId);
+
+    return this.db.transaction(async (tx) => {
+      const [actors] = await tx
+        .select({ id: structures.id, fields: structures.fields })
+        .from(structures)
+        .where(
+          and(
+            eq(structures.journeyId, journeyId),
+            eq(structures.capability, ACTOR),
+          ),
+        );
+
+      if (!actors) {
+        throw new BadRequestException('Mark a structure as Actors first.');
+      }
+
+      const taken = new Set(actors.fields.map((field) => field.id));
+
+      if (dto.fields.some((field) => taken.has(field.id))) {
+        throw new BadRequestException('New fields need new ids.');
+      }
+
+      const fields = [...actors.fields, ...dto.fields];
+
+      if (dto.fields.length > 0) {
+        await tx
+          .update(structures)
+          .set({ fields })
+          .where(eq(structures.id, actors.id));
+      }
+
+      const [resource] = await tx
+        .insert(resources)
+        .values({
+          structureId: actors.id,
+          name: dto.name,
+          values: parseResourceValues(fields, dto.values),
+        })
+        .returning();
+
+      await tx
+        .insert(memberResources)
+        .values({ resourceId: resource.id, journeyId, userId });
+
+      return resource;
+    });
+  }
+
   async update(
     userId: string,
     journeyId: string,
     id: string,
     dto: UpdateResourceDto,
   ): Promise<Resource> {
-    await (dto.capability === undefined
-      ? this.membersService.ensureEditor(userId, journeyId, id)
-      : this.journeysService.ensureOwner(userId, journeyId));
+    await this.membersService.ensureEditor(userId, journeyId, id);
     const fields = await this.fieldsOf(journeyId, id);
     const values =
       dto.values === undefined
@@ -88,12 +146,6 @@ export class ResourcesService {
         .set(values === undefined ? dto : { ...dto, values })
         .where(eq(resources.id, id))
         .returning();
-
-      if (dto.capability !== undefined && dto.capability !== ACTOR) {
-        await tx
-          .delete(memberResources)
-          .where(eq(memberResources.resourceId, id));
-      }
 
       if (values !== undefined) {
         const fieldIds = new Set(fields.map((field) => field.id));

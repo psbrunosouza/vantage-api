@@ -1,13 +1,19 @@
+import { sql } from 'drizzle-orm';
 import {
   index,
   jsonb,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { journeys } from '../journeys/journeys.schema.js';
 import type { StructureField } from './structure-field.js';
+
+export const STRUCTURE_CAPABILITIES = ['actor'] as const;
+
+export const ACTOR = 'actor';
 
 export const structures = pgTable(
   'structures',
@@ -20,6 +26,7 @@ export const structures = pgTable(
     icon: text('icon').notNull(),
     color: text('color'),
     fields: jsonb('fields').$type<StructureField[]>().notNull().default([]),
+    capability: text('capability', { enum: STRUCTURE_CAPABILITIES }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -28,7 +35,12 @@ export const structures = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index().on(table.journeyId)],
+  (table) => [
+    index().on(table.journeyId),
+    uniqueIndex('structures_actor_unique')
+      .on(table.journeyId)
+      .where(sql`${table.capability} = 'actor'`),
+  ],
 );
 
 export type Structure = typeof structures.$inferSelect;

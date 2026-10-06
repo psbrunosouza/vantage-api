@@ -1,9 +1,6 @@
-import { z } from 'zod';
-import { RESOURCE_CAPABILITIES } from '../resources.schema.js';
+import type { z } from 'zod';
 import { createResourceSchema } from './create-resource.dto.js';
 
-export const updateResourceSchema = createResourceSchema.partial().extend({
-  capability: z.enum(RESOURCE_CAPABILITIES).nullable().optional(),
-});
+export const updateResourceSchema = createResourceSchema.partial();
 
 export type UpdateResourceDto = z.infer<typeof updateResourceSchema>;

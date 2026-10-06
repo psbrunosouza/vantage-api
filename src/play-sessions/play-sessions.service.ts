@@ -10,7 +10,8 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
 import { memberResources } from '../members/members.schema.js';
-import { ACTOR, resources } from '../resources/resources.schema.js';
+import { resources } from '../resources/resources.schema.js';
+import { ACTOR, structures } from '../structures/structures.schema.js';
 import type { ArrangeSessionTreeDto } from './dto/arrange-session-tree.dto.js';
 import type { CreateSessionEntryDto } from './dto/create-session-entry.dto.js';
 import type { CreateSessionFolderDto } from './dto/create-session-folder.dto.js';
@@ -226,9 +227,10 @@ export class PlaySessionsService {
     }
 
     const [sheet] = await this.db
-      .select({ name: resources.name, capability: resources.capability })
+      .select({ name: resources.name, capability: structures.capability })
       .from(memberResources)
       .innerJoin(resources, eq(resources.id, memberResources.resourceId))
+      .innerJoin(structures, eq(structures.id, resources.structureId))
       .where(
         and(
           eq(memberResources.resourceId, dto.resourceId),
@@ -252,6 +254,17 @@ export class PlaySessionsService {
         resourceId: dto.resourceId,
         data: { text: dto.text, name: sheet.name },
       })
+      .returning();
+    return entry;
+  }
+
+  async createAiNarration(
+    sessionId: string,
+    text: string,
+  ): Promise<SessionEntry> {
+    const [entry] = await this.db
+      .insert(sessionEntries)
+      .values({ sessionId, kind: 'narrator', source: 'ai', data: { text } })
       .returning();
     return entry;
   }

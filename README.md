@@ -43,6 +43,7 @@ docker compose exec api npm install <pacote>
 - Discord → Discord Developer Portal, OAuth2. Redirect URI: `http://localhost:4200/api/auth/callback/discord`
 - `RESEND_API_KEY` → resend.com. `onboarding@resend.dev` só envia pro email da conta Resend.
 - `SUPABASE_URL` / `SUPABASE_SECRET_KEY` → Supabase, Project Settings → API Keys (secret key, só no backend). Buckets públicos `avatars` e `images` criados no painel (Storage).
+- `AI_KEY_SECRET` → `openssl rand -base64 32`. Criptografa o token OpenRouter de cada usuário. Trocar invalida os tokens salvos.
 
 ## Banco
 

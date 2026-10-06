@@ -56,6 +56,8 @@ export const playSessions = pgTable(
 
 export const ENTRY_KINDS = ['narrator', 'player'] as const;
 
+export const ENTRY_SOURCES = ['user', 'ai'] as const;
+
 export interface EntryData {
   text: string;
   name?: string;
@@ -72,6 +74,7 @@ export const sessionEntries = pgTable(
       onDelete: 'set null',
     }),
     kind: text('kind', { enum: ENTRY_KINDS }).notNull(),
+    source: text('source', { enum: ENTRY_SOURCES }).notNull().default('user'),
     resourceId: uuid('resource_id').references(() => resources.id, {
       onDelete: 'set null',
     }),

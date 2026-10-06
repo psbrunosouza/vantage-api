@@ -15,6 +15,10 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { ImageFile } from '../storage/image-storage.service.js';
 import { ImageUpload } from '../storage/image-upload.decorator.js';
 import {
+  type CreateCharacterDto,
+  createCharacterSchema,
+} from './dto/create-character.dto.js';
+import {
   type CreateResourceDto,
   createResourceSchema,
 } from './dto/create-resource.dto.js';
@@ -48,6 +52,20 @@ export class ResourcesController {
       session.user.id,
       journeyId,
       structureId,
+      dto,
+    );
+  }
+
+  @Post('characters')
+  createCharacter(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Body(new ZodValidationPipe(createCharacterSchema))
+    dto: CreateCharacterDto,
+  ) {
+    return this.resourcesService.createCharacter(
+      session.user.id,
+      journeyId,
       dto,
     );
   }

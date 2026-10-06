@@ -12,6 +12,7 @@ export const createStructureSchema = createInsertSchema(structures, {
   icon: true,
   color: true,
   fields: true,
+  capability: true,
 });
 
 export type CreateStructureDto = z.infer<typeof createStructureSchema>;

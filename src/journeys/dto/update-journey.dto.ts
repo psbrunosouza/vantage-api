@@ -3,6 +3,7 @@ import { createJourneySchema } from './create-journey.dto.js';
 
 export const updateJourneySchema = createJourneySchema.partial().extend({
   narratorId: z.uuid().nullable().optional(),
+  aiNarrator: z.boolean().optional(),
 });
 
 export type UpdateJourneyDto = z.infer<typeof updateJourneySchema>;

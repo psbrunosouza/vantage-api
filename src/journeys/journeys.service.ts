@@ -56,6 +56,12 @@ export class JourneysService {
   ): Promise<Journey> {
     await this.ensureOwner(userId, id);
 
+    if (dto.narratorId && dto.aiNarrator) {
+      throw new BadRequestException(
+        'Choose either a narrator or the AI narrator.',
+      );
+    }
+
     if (dto.narratorId) {
       const [member] = await this.db
         .select({ userId: journeyMembers.userId })
@@ -74,7 +80,11 @@ export class JourneysService {
 
     const [journey] = await this.db
       .update(journeys)
-      .set(dto)
+      .set({
+        ...dto,
+        ...(dto.aiNarrator ? { narratorId: null } : {}),
+        ...(dto.narratorId ? { aiNarrator: false } : {}),
+      })
       .where(eq(journeys.id, id))
       .returning();
     return journey;
@@ -101,6 +111,16 @@ export class JourneysService {
   async remove(userId: string, id: string): Promise<void> {
     await this.ensureOwner(userId, id);
     await this.db.delete(journeys).where(eq(journeys.id, id));
+  }
+
+  async findOne(userId: string, id: string): Promise<Journey> {
+    const [journey] = await this.db
+      .select()
+      .from(journeys)
+      .where(and(eq(journeys.id, id), this.visibleTo(userId)));
+
+    if (!journey) throw new NotFoundException('Journey not found.');
+    return journey;
   }
 
   async ensureVisible(

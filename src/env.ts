@@ -17,6 +17,13 @@ export const envSchema = z.object({
   EMAIL_FROM: z.string().min(1),
   SUPABASE_URL: z.url(),
   SUPABASE_SECRET_KEY: z.string().min(1),
+  AI_KEY_SECRET: z
+    .base64()
+    .transform((secret) => Buffer.from(secret, 'base64'))
+    .refine(
+      (secret) => secret.length === 32,
+      'AI_KEY_SECRET must be 32 bytes.',
+    ),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -12,8 +12,8 @@ import { users } from '../auth/auth.schema.js';
 import { DATABASE } from '../database/database.module.js';
 import { journeyMembers } from '../journeys/journeys.schema.js';
 import { JourneysService } from '../journeys/journeys.service.js';
-import { ACTOR, resources } from '../resources/resources.schema.js';
-import { structures } from '../structures/structures.schema.js';
+import { resources } from '../resources/resources.schema.js';
+import { ACTOR, structures } from '../structures/structures.schema.js';
 import type { SetMemberResourcesDto } from './dto/set-member-resources.dto.js';
 import { memberResources } from './members.schema.js';
 
@@ -100,7 +100,7 @@ export class MembersService {
 
       if (resourceIds.length > 0) {
         const found = await tx
-          .select({ id: resources.id, capability: resources.capability })
+          .select({ id: resources.id, capability: structures.capability })
           .from(resources)
           .innerJoin(structures, eq(structures.id, resources.structureId))
           .where(

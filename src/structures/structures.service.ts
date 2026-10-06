@@ -1,15 +1,18 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { type SQL, and, asc, eq, inArray, ne } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
 import { links } from '../links/links.schema.js';
 import { keyOf, relationTargets } from '../links/relation-columns.js';
+import { memberResources } from '../members/members.schema.js';
 import { resources } from '../resources/resources.schema.js';
 import type { CreateStructureDto } from './dto/create-structure.dto.js';
 import type { UpdateStructureDto } from './dto/update-structure.dto.js';
-import { type Structure, structures } from './structures.schema.js';
+import { ACTOR, type Structure, structures } from './structures.schema.js';
+
+type Transaction = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
 
 @Injectable()
 export class StructuresService {
@@ -33,11 +36,18 @@ export class StructuresService {
     dto: CreateStructureDto,
   ): Promise<Structure> {
     await this.journeysService.ensureOwner(userId, journeyId);
-    const [structure] = await this.db
-      .insert(structures)
-      .values({ ...dto, journeyId })
-      .returning();
-    return structure;
+
+    return this.db.transaction(async (tx) => {
+      if (dto.capability === ACTOR) {
+        await this.demote(tx, this.actorsOf(journeyId));
+      }
+
+      const [structure] = await tx
+        .insert(structures)
+        .values({ ...dto, journeyId })
+        .returning();
+      return structure;
+    });
   }
 
   async update(
@@ -47,14 +57,26 @@ export class StructuresService {
     dto: UpdateStructureDto,
   ): Promise<Structure> {
     await this.journeysService.ensureOwner(userId, journeyId);
-    const [structure] = await this.db
-      .update(structures)
-      .set(dto)
-      .where(this.inJourney(journeyId, id))
-      .returning();
 
-    if (!structure) throw new NotFoundException('Structure not found.');
-    return structure;
+    return this.db.transaction(async (tx) => {
+      if (dto.capability !== undefined) {
+        await this.demote(
+          tx,
+          dto.capability === ACTOR
+            ? and(this.actorsOf(journeyId), ne(structures.id, id))
+            : this.inJourney(journeyId, id),
+        );
+      }
+
+      const [structure] = await tx
+        .update(structures)
+        .set(dto)
+        .where(this.inJourney(journeyId, id))
+        .returning();
+
+      if (!structure) throw new NotFoundException('Structure not found.');
+      return structure;
+    });
   }
 
   async prune(userId: string, journeyId: string, id: string): Promise<void> {
@@ -128,6 +150,38 @@ export class StructuresService {
       .returning({ id: structures.id });
 
     if (!structure) throw new NotFoundException('Structure not found.');
+  }
+
+  private async demote(
+    tx: Transaction,
+    where: SQL | undefined,
+  ): Promise<void> {
+    const demoted = tx
+      .select({ id: structures.id })
+      .from(structures)
+      .where(where);
+    await tx
+      .delete(memberResources)
+      .where(
+        inArray(
+          memberResources.resourceId,
+          tx
+            .select({ id: resources.id })
+            .from(resources)
+            .where(inArray(resources.structureId, demoted)),
+        ),
+      );
+    await tx
+      .update(structures)
+      .set({ capability: null })
+      .where(inArray(structures.id, demoted));
+  }
+
+  private actorsOf(journeyId: string) {
+    return and(
+      eq(structures.journeyId, journeyId),
+      eq(structures.capability, ACTOR),
+    );
   }
 
   private inJourney(journeyId: string, id: string) {

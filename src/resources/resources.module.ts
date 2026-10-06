@@ -8,5 +8,6 @@ import { ResourcesService } from './resources.service.js';
   imports: [JourneysModule, MembersModule],
   controllers: [ResourcesController],
   providers: [ResourcesService],
+  exports: [ResourcesService],
 })
 export class ResourcesModule {}

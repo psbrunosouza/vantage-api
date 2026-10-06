@@ -7,5 +7,6 @@ import { PlaySessionsService } from './play-sessions.service.js';
   imports: [JourneysModule],
   controllers: [PlaySessionsController],
   providers: [PlaySessionsService],
+  exports: [PlaySessionsService],
 })
 export class PlaySessionsModule {}

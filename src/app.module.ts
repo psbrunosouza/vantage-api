@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { AiModule } from './ai/ai.module.js';
 import { createAuth } from './auth/auth.js';
 import { AvatarModule } from './avatar/avatar.module.js';
+import { CampaignsModule } from './campaigns/campaigns.module.js';
 import { DATABASE, DatabaseModule } from './database/database.module.js';
 import { type Env, envSchema } from './env.js';
 import { HealthModule } from './health/health.module.js';
@@ -37,6 +39,8 @@ import { StructuresModule } from './structures/structures.module.js';
     LinksModule,
     PlaySessionsModule,
     MembersModule,
+    CampaignsModule,
+    AiModule,
   ],
 })
 export class AppModule {}

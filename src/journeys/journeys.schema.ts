@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   pgTable,
   primaryKey,
@@ -24,6 +25,7 @@ export const journeys = pgTable(
     narratorId: uuid('narrator_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    aiNarrator: boolean('ai_narrator').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
