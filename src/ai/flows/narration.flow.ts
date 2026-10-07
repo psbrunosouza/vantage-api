@@ -59,11 +59,17 @@ export class NarrationFlow {
     ]);
 
     if (!journey.aiNarrator) {
-      throw new BadRequestException("The AI doesn't narrate this journey.");
+      throw new BadRequestException({
+        code: 'AI_NOT_NARRATOR',
+        message: "The AI doesn't narrate this journey.",
+      });
     }
 
     if (!campaign) {
-      throw new BadRequestException('Choose a campaign first.');
+      throw new BadRequestException({
+        code: 'CAMPAIGN_MISSING',
+        message: 'Choose a campaign first.',
+      });
     }
 
     const history = entries.slice(-HISTORY).map(messageOf);

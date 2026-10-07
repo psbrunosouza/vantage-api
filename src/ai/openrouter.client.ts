@@ -8,7 +8,10 @@ import {
 import { z } from 'zod';
 
 const BASE_URL = 'https://openrouter.ai/api/v1';
-const UNREACHABLE = "Couldn't reach OpenRouter.";
+const UNREACHABLE = {
+  code: 'AI_PROVIDER_UNREACHABLE',
+  message: "Couldn't reach OpenRouter.",
+};
 
 const modelsSchema = z.object({
   data: z.array(
@@ -130,18 +133,25 @@ export class OpenRouterClient {
     const failure = failureMessageOf(body);
 
     if (response.status === 401) {
-      throw new BadRequestException('OpenRouter rejected your key.');
+      throw new BadRequestException({
+        code: 'AI_KEY_REJECTED',
+        message: 'OpenRouter rejected your key.',
+      });
     }
 
     if (response.status === 402) {
-      throw new BadRequestException(
-        'Your OpenRouter account is out of credits.',
-      );
+      throw new BadRequestException({
+        code: 'AI_NO_CREDITS',
+        message: 'Your OpenRouter account is out of credits.',
+      });
     }
 
     if (response.status === 429) {
       throw new HttpException(
-        failure ?? 'OpenRouter is rate limiting. Try again shortly.',
+        {
+          code: 'AI_RATE_LIMITED',
+          message: failure ?? 'OpenRouter is rate limiting. Try again shortly.',
+        },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -149,7 +159,11 @@ export class OpenRouterClient {
     const completion = completionSchema.safeParse(body);
 
     if (!response.ok || !completion.success) {
-      throw new BadGatewayException(failure ?? UNREACHABLE);
+      throw new BadGatewayException(
+        failure === null
+          ? UNREACHABLE
+          : { code: 'AI_PROVIDER_FAILED', message: failure },
+      );
     }
 
     return completion.data.choices[0].message;

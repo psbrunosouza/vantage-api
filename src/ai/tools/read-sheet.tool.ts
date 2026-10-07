@@ -29,7 +29,10 @@ export function readSheetTool(
       );
 
       if (!resource || !structure) {
-        throw new NotFoundException('Character not found.');
+        throw new NotFoundException({
+          code: 'CHARACTER_NOT_FOUND',
+          message: 'Character not found.',
+        });
       }
 
       return {

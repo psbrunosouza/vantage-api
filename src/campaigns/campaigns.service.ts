@@ -30,12 +30,33 @@ export class CampaignsService {
     await this.journeysService.ensureOwner(userId, journeyId);
 
     if (await this.find(userId, journeyId)) {
-      throw new ConflictException('This journey already has a campaign.');
+      throw new ConflictException({
+        code: 'CAMPAIGN_EXISTS',
+        message: 'This journey already has a campaign.',
+      });
     }
 
     const [campaign] = await this.db
       .insert(campaigns)
       .values({ ...dto, journeyId })
+      .returning();
+    return campaign;
+  }
+
+  async replace(
+    userId: string,
+    journeyId: string,
+    dto: CreateCampaignDto,
+  ): Promise<Campaign> {
+    await this.journeysService.ensureOwner(userId, journeyId);
+
+    const [campaign] = await this.db
+      .insert(campaigns)
+      .values({ ...dto, journeyId })
+      .onConflictDoUpdate({
+        target: campaigns.journeyId,
+        set: { ...dto, updatedAt: new Date() },
+      })
       .returning();
     return campaign;
   }

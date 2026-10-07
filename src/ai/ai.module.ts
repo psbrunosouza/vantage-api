@@ -11,6 +11,7 @@ import { AiController } from './ai.controller.js';
 import { AiService } from './ai.service.js';
 import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
 import { CharacterDraftFlow } from './flows/character-draft.flow.js';
+import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
 
@@ -30,6 +31,7 @@ import { OpenRouterClient } from './openrouter.client.js';
     OpenRouterClient,
     AgentRunner,
     CampaignOptionsFlow,
+    CharacterOptionsFlow,
     CharacterDraftFlow,
     NarrationFlow,
   ],

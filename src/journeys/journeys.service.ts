@@ -38,7 +38,7 @@ export class JourneysService {
     return this.db.transaction(async (tx) => {
       const [journey] = await tx
         .insert(journeys)
-        .values({ ...dto, ownerId, narratorId: ownerId })
+        .values({ ...dto, ownerId, narratorId: dto.aiNarrator ? null : ownerId })
         .returning();
       await tx.insert(journeyMembers).values({
         journeyId: journey.id,
@@ -57,9 +57,10 @@ export class JourneysService {
     await this.ensureOwner(userId, id);
 
     if (dto.narratorId && dto.aiNarrator) {
-      throw new BadRequestException(
-        'Choose either a narrator or the AI narrator.',
-      );
+      throw new BadRequestException({
+        code: 'NARRATOR_CONFLICT',
+        message: 'Choose either a narrator or the AI narrator.',
+      });
     }
 
     if (dto.narratorId) {
@@ -74,7 +75,10 @@ export class JourneysService {
         );
 
       if (!member) {
-        throw new BadRequestException('The narrator must be in the journey.');
+        throw new BadRequestException({
+          code: 'NARRATOR_NOT_MEMBER',
+          message: 'The narrator must be in the journey.',
+        });
       }
     }
 
@@ -83,6 +87,9 @@ export class JourneysService {
       .set({
         ...dto,
         ...(dto.aiNarrator ? { narratorId: null } : {}),
+        ...(dto.aiNarrator === false && dto.narratorId === undefined
+          ? { narratorId: userId }
+          : {}),
         ...(dto.narratorId ? { aiNarrator: false } : {}),
       })
       .where(eq(journeys.id, id))
@@ -119,7 +126,10 @@ export class JourneysService {
       .from(journeys)
       .where(and(eq(journeys.id, id), this.visibleTo(userId)));
 
-    if (!journey) throw new NotFoundException('Journey not found.');
+    if (!journey) throw new NotFoundException({
+      code: 'JOURNEY_NOT_FOUND',
+      message: 'Journey not found.',
+    });
     return journey;
   }
 
@@ -132,14 +142,20 @@ export class JourneysService {
       .from(journeys)
       .where(and(eq(journeys.id, id), this.visibleTo(userId)));
 
-    if (!journey) throw new NotFoundException('Journey not found.');
+    if (!journey) throw new NotFoundException({
+      code: 'JOURNEY_NOT_FOUND',
+      message: 'Journey not found.',
+    });
     return journey;
   }
 
   async ensureOwner(userId: string, id: string): Promise<void> {
     const journey = await this.ensureVisible(userId, id);
     if (journey.ownerId !== userId) {
-      throw new ForbiddenException('Only the owner can change this journey.');
+      throw new ForbiddenException({
+        code: 'OWNER_ONLY',
+        message: 'Only the owner can change this journey.',
+      });
     }
   }
 

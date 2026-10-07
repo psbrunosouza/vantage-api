@@ -18,6 +18,7 @@ export const journeys = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     initials: text('initials').notNull(),
+    icon: text('icon'),
     description: text('description'),
     color: text('color'),
     mainDie: text('main_die'),
@@ -26,6 +27,7 @@ export const journeys = pgTable(
       onDelete: 'set null',
     }),
     aiNarrator: boolean('ai_narrator').notNull().default(false),
+    inviteCode: text('invite_code').unique(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

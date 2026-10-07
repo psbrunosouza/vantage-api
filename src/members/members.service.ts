@@ -78,9 +78,10 @@ export class MembersService {
       userId !== journey.ownerId &&
       userId !== journey.narratorId
     ) {
-      throw new ForbiddenException(
-        "Only the narrator or the owner can change another player's sheets.",
-      );
+      throw new ForbiddenException({
+        code: 'SHEETS_FORBIDDEN',
+        message: "Only the narrator or the owner can change another player's sheets.",
+      });
     }
 
     const resourceIds = [...new Set(dto.resourceIds)];
@@ -96,7 +97,10 @@ export class MembersService {
           ),
         );
 
-      if (!member) throw new NotFoundException('Member not found.');
+      if (!member) throw new NotFoundException({
+        code: 'MEMBER_NOT_FOUND',
+        message: 'Member not found.',
+      });
 
       if (resourceIds.length > 0) {
         const found = await tx
@@ -111,11 +115,17 @@ export class MembersService {
           );
 
         if (found.length !== resourceIds.length) {
-          throw new NotFoundException('Resource not found.');
+          throw new NotFoundException({
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'Resource not found.',
+          });
         }
 
         if (found.some((resource) => resource.capability !== ACTOR)) {
-          throw new BadRequestException('Only actor sheets can be controlled.');
+          throw new BadRequestException({
+            code: 'ACTOR_SHEETS_ONLY',
+            message: 'Only actor sheets can be controlled.',
+          });
         }
 
         const taken = await tx
@@ -129,9 +139,10 @@ export class MembersService {
           );
 
         if (taken.length > 0) {
-          throw new ConflictException(
-            'A sheet is already controlled by another player.',
-          );
+          throw new ConflictException({
+            code: 'SHEET_TAKEN',
+            message: 'A sheet is already controlled by another player.',
+          });
         }
       }
 
@@ -181,9 +192,10 @@ export class MembersService {
       );
 
     if (!controlled) {
-      throw new ForbiddenException(
-        'Only the owner or the player controlling this sheet can change it.',
-      );
+      throw new ForbiddenException({
+        code: 'SHEET_EDIT_FORBIDDEN',
+        message: 'Only the owner or the player controlling this sheet can change it.',
+      });
     }
   }
 }

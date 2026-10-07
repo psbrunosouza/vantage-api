@@ -65,7 +65,10 @@ export class LinksService {
           and(eq(resources.id, sourceId), eq(structures.journeyId, journeyId)),
         );
 
-      if (!source) throw new NotFoundException('Resource not found.');
+      if (!source) throw new NotFoundException({
+        code: 'RESOURCE_NOT_FOUND',
+        message: 'Resource not found.',
+      });
 
       const field = source.fields.find((entry) => entry.id === dto.fieldId);
       const relation =
@@ -76,19 +79,28 @@ export class LinksService {
             : relationColumns(field).find((entry) => entry.id === dto.columnId)
                 ?.relation;
 
-      if (!relation) throw new NotFoundException('Relation not found.');
+      if (!relation) throw new NotFoundException({
+        code: 'RELATION_NOT_FOUND',
+        message: 'Relation not found.',
+      });
 
       if (
         dto.rowId !== null &&
         !tableRowIds(source.values, dto.fieldId).includes(dto.rowId)
       ) {
-        throw new NotFoundException('Row not found.');
+        throw new NotFoundException({
+          code: 'ROW_NOT_FOUND',
+          message: 'Row not found.',
+        });
       }
 
       const targetIds = [...new Set(dto.targetIds)];
 
       if (relation.targets === 'one' && targetIds.length > 1) {
-        throw new BadRequestException('This relation takes one target.');
+        throw new BadRequestException({
+          code: 'RELATION_SINGLE_TARGET',
+          message: 'This relation takes one target.',
+        });
       }
 
       if (targetIds.length > 0) {
@@ -105,7 +117,10 @@ export class LinksService {
           );
 
         if (found.length !== targetIds.length) {
-          throw new BadRequestException('Target outside the relation.');
+          throw new BadRequestException({
+            code: 'RELATION_TARGET_INVALID',
+            message: 'Target outside the relation.',
+          });
         }
       }
 
@@ -128,7 +143,10 @@ export class LinksService {
           )
           .limit(1);
 
-        if (taken) throw new ConflictException('Target already linked.');
+        if (taken) throw new ConflictException({
+          code: 'RELATION_TARGET_TAKEN',
+          message: 'Target already linked.',
+        });
       }
 
       const cell = and(

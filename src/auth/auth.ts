@@ -6,7 +6,14 @@ import { openAPI } from 'better-auth/plugins';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Resend } from 'resend';
 import type { Env } from '../env.js';
+import { authEmail, type AuthEmailKind } from './auth-emails.js';
 import * as schema from './auth.schema.js';
+import {
+  LOCALES,
+  acceptedLocale,
+  localeOf,
+  parseLocale,
+} from './locales.js';
 
 export function createAuth(
   db: NodePgDatabase,
@@ -15,8 +22,19 @@ export function createAuth(
   const resend = new Resend(config.get('RESEND_API_KEY', { infer: true }));
   const from = config.get('EMAIL_FROM', { infer: true });
 
-  const sendEmail = async (to: string, subject: string, text: string) => {
-    const { error } = await resend.emails.send({ from, to, subject, text });
+  const sendEmail = async (
+    kind: AuthEmailKind,
+    user: { email: string },
+    url: string,
+  ) => {
+    const locale = localeOf('locale' in user ? user.locale : undefined);
+    const { subject, text } = authEmail(kind, locale, url);
+    const { error } = await resend.emails.send({
+      from,
+      to: user.email,
+      subject,
+      text,
+    });
     if (error) throw new Error(error.message);
   };
 
@@ -34,6 +52,25 @@ export function createAuth(
           required: false,
           defaultValue: 'COMMON',
           input: false,
+        },
+        locale: {
+          type: [...LOCALES],
+          required: false,
+          input: true,
+        },
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user, ctx) => ({
+            data: {
+              ...user,
+              locale:
+                parseLocale(user.locale) ??
+                acceptedLocale(ctx?.headers?.get('accept-language')),
+            },
+          }),
         },
       },
     },
@@ -55,14 +92,12 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      sendResetPassword: ({ user, url }) =>
-        sendEmail(user.email, 'Reset your password', url),
+      sendResetPassword: ({ user, url }) => sendEmail('reset', user, url),
     },
     emailVerification: {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
-      sendVerificationEmail: ({ user, url }) =>
-        sendEmail(user.email, 'Verify your email', url),
+      sendVerificationEmail: ({ user, url }) => sendEmail('verify', user, url),
     },
     socialProviders: {
       google: {

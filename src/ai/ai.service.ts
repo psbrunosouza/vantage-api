@@ -81,9 +81,10 @@ export class AiService {
     const settings = await this.settingsOf(userId);
 
     if (!settings?.model || !settings.apiKey) {
-      throw new BadRequestException(
-        'Choose a model and add an OpenRouter key first.',
-      );
+      throw new BadRequestException({
+        code: 'AI_NOT_CONFIGURED',
+        message: 'Choose a model and add an OpenRouter key first.',
+      });
     }
 
     return {
@@ -104,9 +105,10 @@ export class AiService {
     const models = await this.listModels();
 
     if (!models.some((candidate) => candidate.id === model)) {
-      throw new BadRequestException(
-        "This model isn't available or doesn't support tools.",
-      );
+      throw new BadRequestException({
+        code: 'AI_MODEL_UNAVAILABLE',
+        message: "This model isn't available or doesn't support tools.",
+      });
     }
   }
 
@@ -114,7 +116,10 @@ export class AiService {
     apiKey: string,
   ): Promise<Pick<AiSettings, 'apiKey' | 'apiKeyHint'>> {
     if (!(await this.openRouter.isValidKey(apiKey))) {
-      throw new BadRequestException('This OpenRouter key is invalid.');
+      throw new BadRequestException({
+        code: 'AI_KEY_INVALID',
+        message: 'This OpenRouter key is invalid.',
+      });
     }
 
     return {

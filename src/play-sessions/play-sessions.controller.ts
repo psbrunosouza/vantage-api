@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -87,6 +90,20 @@ export class PlaySessionsController {
     );
   }
 
+  @Delete('session-folders/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeFolder(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.playSessionsService.removeFolder(
+      session.user.id,
+      journeyId,
+      id,
+    );
+  }
+
   @Post('play-sessions')
   createSession(
     @Session() session: UserSession<Auth>,
@@ -108,6 +125,20 @@ export class PlaySessionsController {
       journeyId,
       id,
       dto,
+    );
+  }
+
+  @Delete('play-sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeSession(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.playSessionsService.removeSession(
+      session.user.id,
+      journeyId,
+      id,
     );
   }
 

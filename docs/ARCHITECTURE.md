@@ -44,7 +44,8 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 
 - Padrão Nest CLI: um módulo por domínio (`nest g resource`).
 - ESM: import relativo com `.js`.
-- Body validado com `ZodValidationPipe` + schema `drizzle-zod` em `dto/`. Param uuid → `ParseUUIDPipe`.
+- Body validado com `ZodValidationPipe` + schema `drizzle-zod` em `dto/`. Param uuid → `ParseUUIDPipe`. Falha → `400 { code: 'INVALID_INPUT', message, issues }`.
+- Erro pro usuário: exception do Nest com `{ code, message }` (`code` em `SCREAMING_SNAKE`, `message` em inglês pra log). Front traduz pelo `code`.
 - Env validado em `env.ts`. Leitura via `ConfigService<Env, true>`.
 - Banco: injetar `DATABASE` (cliente Drizzle).
 - Imagem: injetar `ImageStorageService`; rota com `@ImageUpload()`. Upload passa pelo backend; front nunca fala direto com o Supabase.
@@ -70,6 +71,8 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `users` = pessoa. `accounts` = forma de login (1 por provedor). `sessions`, `verifications`.
 - Mesmo email verificado em outro provedor → mesma `users`.
 - `users.role`: `COMMON` (padrão) | `SYSTEM`. `SYSTEM` só via seed (`src/database/seed.ts`). Nenhuma rota altera `role` (`input: false`).
+- `users.locale`: idioma da interface (`en` padrão | `pt-BR` | `zh-CN` | `es`, `auth/locales.ts`). Additional field `input: true`: vai no sign-up e em `/api/auth/update-user`; sem valor na criação (ex.: login social) → `Accept-Language` (`databaseHooks.user.create.before`). Não afeta conteúdo do jogo.
+- Emails de auth (verificação, reset) no idioma do usuário (`auth/auth-emails.ts`).
 
 ## Imagens
 
@@ -83,9 +86,13 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `journey_members` = pessoas da journey, dono incluso (entra na criação). PK `(journey_id, user_id)`. `color` = hue sorteada ao entrar (`pickMemberColor`, prioriza livres entre as 8 de `member-colors.ts`).
 - Usuário vê journey se é dono ou participante. Fora disso → `404`.
 - `PATCH`/`DELETE`/`POST :id/avatar` só dono. Participante → `403`.
-- `journeys.narrator_id` = único narrador (coluna única garante 1). Nasce = dono. `PATCH` com `narratorId` (só dono): precisa estar em `journey_members`, senão `400`; `null` = sem narrador.
-- `journeys.ai_narrator` = a IA narra (paga com a key do dono). `PATCH` com `aiNarrator: true` zera `narrator_id`; `narratorId` preenchido desliga `ai_narrator`; os dois juntos → `400`.
-- Entrada de participante: ainda não existe.
+- `journeys.icon` = id do ícone (catálogo do front), opcional. `initials` continua obrigatória.
+- `journeys.narrator_id` = único narrador (coluna única garante 1). Nasce = dono (ou `null` se criada com `aiNarrator: true`). `PATCH` com `narratorId` (só dono): precisa estar em `journey_members`, senão `400`; `null` = sem narrador.
+- `journeys.ai_narrator` = a IA narra (paga com a key do dono). `PATCH` com `aiNarrator: true` zera `narrator_id`; `aiNarrator: false` sem `narratorId` põe o dono como narrador; `narratorId` preenchido desliga `ai_narrator`; os dois juntos → `400`.
+- Entrada de participante: por convite (`invites/`). `journeys.invite_code` (unique, nulo até o dono pedir) = código do link.
+  - `POST /api/journeys/:journeyId/invite` (só dono) → `{ code }`; cria na primeira chamada, depois devolve o mesmo.
+  - `GET /api/invites/:code` → prévia (`journeyId`, `name`, `initials`, `icon`, `color`, `avatarUrl`, `ownerName`, `member`). Código inexistente → `404`.
+  - `POST /api/invites/:code/accept` → entra em `journey_members` com cor de `pickMemberColor` (idempotente) e devolve a journey.
 
 ## Structures
 
@@ -125,7 +132,8 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `session_folders` = pasta de sessões. Pertence a uma journey (cascade). 1 nível: pasta não contém pasta.
 - `play_sessions` = sessão de jogo (chat). Pertence a uma journey (cascade). `folder_id` nulo = raiz; pasta apagada → `set null`. Nome `play_sessions` porque `sessions` é do Better Auth.
 - `position`: pastas e sessões soltas dividem a ordem da raiz; sessões de pasta têm ordem própria dentro dela.
-- Rotas em `/api/journeys/:journeyId/`: `GET session-tree` (`{ folders, sessions }` ordenados por `position`), `PUT session-tree` (`{ items }`: layout inteiro), `POST session-folders` (`{ name }`), `PATCH session-folders/:id`, `POST play-sessions` (sem body), `PATCH play-sessions/:id` (`{ title }`). Leitura: quem vê a journey. Escrita: só dono.
+- Rotas em `/api/journeys/:journeyId/`: `GET session-tree` (`{ folders, sessions }` ordenados por `position`), `PUT session-tree` (`{ items }`: layout inteiro), `POST session-folders` (`{ name }`), `PATCH session-folders/:id`, `DELETE session-folders/:id`, `POST play-sessions` (sem body), `PATCH play-sessions/:id` (`{ title }`), `DELETE play-sessions/:id`. Leitura: quem vê a journey. Escrita: só dono.
+- `DELETE session-folders/:id` apaga a pasta e as sessões dentro dela, numa transação. `DELETE play-sessions/:id` apaga a sessão. Entradas das sessões apagadas vão junto (cascade). Fora da journey → `404`.
 - Criação (pasta ou sessão) entra no topo da raiz (`min(position) - 1`). Sessão nasce `Session N` (N = total da journey + 1).
 - `PUT session-tree`: `items` lista cada pasta (com `sessionIds`) e cada sessão solta da journey exatamente uma vez, senão `400`. Atualiza só o que mudou, numa transação.
 - `session_entries` = itens do chat da sessão, em ordem de `created_at`. `kind` (`narrator` | `player`, a voz), `source` (`user` | `ai`, quem escreveu; padrão `user`), `user_id` (quem escreveu, `set null`; nulo na IA), `resource_id` (ficha que falou, `set null`), `data` (`jsonb`, formato por `kind`; hoje `{ text, name? }`). Texto e nome da ficha gravados como estavam no envio.
@@ -144,21 +152,27 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Tools (`ai/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
 - `journey-context.ts`: journey, structures, campanha e ficha em texto compacto (label, nunca id).
 - Flows (`ai/flows/`), rotas em `/api/ai/journeys/:journeyId/`:
-  - `POST campaign-options` → 3 campanhas (`submit`, schema de `createCampaignSchema`). Não salva.
+  - `POST campaign-options` (`{ direction?, moods? }`) → 3 campanhas (`submit`, schema de `createCampaignSchema`). Sem contexto da journey (nome, descrição, structures); só direção e moods do jogador. Não salva.
+  - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Exige campanha e structure de actors (`400`). Não salva.
   - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Exige campanha e structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.
 
 ## Campaigns
 
 - `campaigns` = campanha da journey. `journey_id` unique (1 por journey, cascade). `title`, `premise`, `brief` (`jsonb`, `campaignBriefSchema`: `setting`, `tone`, `hook`, `objective`, `npcs[{ name, role }]`).
-- Rotas em `/api/journeys/:journeyId/campaign`: `GET` (campanha ou `null`, quem vê a journey), `POST` (só dono; já existe → `409`).
+- Rotas em `/api/journeys/:journeyId/campaign`: `GET` (campanha ou `null`, quem vê a journey), `POST` (só dono; já existe → `409`), `PUT` (só dono; cria ou substitui).
 
 ## Characters
 
 - `POST /api/journeys/:journeyId/characters` (`{ name, fields, values }`, só dono): numa transação adiciona `fields` novos à structure de actors (ids novos, senão `400`), cria a ficha com `values` validados e põe o dono no controle (`member_resources`). Sem structure de actors → `400`.
 
+## Catálogos
+
+- `field_types` = tipos de field (`id` = slug do tipo, `name`, `icon`, `description`, `position`). `GET /api/fields` ordenado por `position`.
+- `templates` = templates de journey (`id` slug, `name`, `summary`, `icon`, `color`, `position`). `template_categories` = categorias do template (PK `(template_id, position)`, `name`, `icon`, cascade).
+- `GET /api/templates` → templates ordenados por `position`, cada um com `categories: [{ name, icon }]`.
+- Só leitura. Dados vêm de `src/database/seed.ts`: upsert por `id`, categorias recriadas.
+
 ## Contrato
 
-- No backend: auth, avatar, journeys, members, structures, resources, links, play sessions, campaigns, ai.
-- Resto: frontend usa `frontend/mock-api/db.json` (json-server).
-- Coleções e regras de dados → `frontend/docs/ARCHITECTURE.md`, seção Dados.
+- No backend: auth, avatar, journeys, invites, members, structures, resources, links, play sessions, campaigns, ai, fields, templates. Frontend não usa mock.

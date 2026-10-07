@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
@@ -36,5 +37,14 @@ export class CampaignsController {
     @Body(new ZodValidationPipe(createCampaignSchema)) dto: CreateCampaignDto,
   ) {
     return this.campaignsService.create(session.user.id, journeyId, dto);
+  }
+
+  @Put()
+  replace(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Body(new ZodValidationPipe(createCampaignSchema)) dto: CreateCampaignDto,
+  ) {
+    return this.campaignsService.replace(session.user.id, journeyId, dto);
   }
 }

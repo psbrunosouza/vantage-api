@@ -74,7 +74,10 @@ export class StructuresService {
         .where(this.inJourney(journeyId, id))
         .returning();
 
-      if (!structure) throw new NotFoundException('Structure not found.');
+      if (!structure) throw new NotFoundException({
+        code: 'STRUCTURE_NOT_FOUND',
+        message: 'Structure not found.',
+      });
       return structure;
     });
   }
@@ -88,7 +91,10 @@ export class StructuresService {
         .from(structures)
         .where(this.inJourney(journeyId, id));
 
-      if (!structure) throw new NotFoundException('Structure not found.');
+      if (!structure) throw new NotFoundException({
+        code: 'STRUCTURE_NOT_FOUND',
+        message: 'Structure not found.',
+      });
 
       const fieldIds = new Set(structure.fields.map((field) => field.id));
       const owned = await tx
@@ -149,7 +155,10 @@ export class StructuresService {
       .where(this.inJourney(journeyId, id))
       .returning({ id: structures.id });
 
-    if (!structure) throw new NotFoundException('Structure not found.');
+    if (!structure) throw new NotFoundException({
+      code: 'STRUCTURE_NOT_FOUND',
+      message: 'Structure not found.',
+    });
   }
 
   private async demote(

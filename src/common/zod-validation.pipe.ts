@@ -6,7 +6,13 @@ export class ZodValidationPipe<T extends z.ZodType> implements PipeTransform {
 
   transform(value: unknown): z.infer<T> {
     const result = this.schema.safeParse(value);
-    if (!result.success) throw new BadRequestException(result.error.issues);
+    if (!result.success) {
+      throw new BadRequestException({
+        code: 'INVALID_INPUT',
+        message: 'Invalid input.',
+        issues: result.error.issues,
+      });
+    }
     return result.data;
   }
 }

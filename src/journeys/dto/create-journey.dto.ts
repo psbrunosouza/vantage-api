@@ -8,9 +8,11 @@ export const createJourneySchema = createInsertSchema(journeys, {
 }).pick({
   name: true,
   initials: true,
+  icon: true,
   description: true,
   color: true,
   mainDie: true,
+  aiNarrator: true,
 });
 
 export type CreateJourneyDto = z.infer<typeof createJourneySchema>;

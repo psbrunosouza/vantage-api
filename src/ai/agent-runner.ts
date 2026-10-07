@@ -34,7 +34,10 @@ export class AgentRunner {
         const text = reply.content?.trim();
 
         if (!text) {
-          throw new BadGatewayException('The AI sent an empty reply.');
+          throw new BadGatewayException({
+            code: 'AI_EMPTY_REPLY',
+            message: 'The AI sent an empty reply.',
+          });
         }
 
         return text;
@@ -55,7 +58,10 @@ export class AgentRunner {
       }
     }
 
-    throw new BadGatewayException('The AI took too many steps.');
+    throw new BadGatewayException({
+      code: 'AI_TOO_MANY_STEPS',
+      message: 'The AI took too many steps.',
+    });
   }
 
   async submit<T>(
@@ -100,9 +106,10 @@ export class AgentRunner {
       );
     }
 
-    throw new BadGatewayException(
-      "The AI couldn't produce a valid result. Try again.",
-    );
+    throw new BadGatewayException({
+      code: 'AI_INVALID_RESULT',
+      message: "The AI couldn't produce a valid result. Try again.",
+    });
   }
 
   private async execute(tools: AiTool[], call: ToolCall): Promise<string> {

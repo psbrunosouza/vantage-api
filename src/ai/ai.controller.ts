@@ -16,6 +16,10 @@ import type { Auth } from '../auth/auth.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AiService } from './ai.service.js';
 import {
+  type CampaignOptionsDto,
+  campaignOptionsSchema,
+} from './dto/campaign-options.dto.js';
+import {
   type CharacterDraftDto,
   characterDraftSchema,
 } from './dto/character-draft.dto.js';
@@ -25,6 +29,7 @@ import {
 } from './dto/update-ai-settings.dto.js';
 import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
 import { CharacterDraftFlow } from './flows/character-draft.flow.js';
+import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
 
 @ApiTags('ai')
@@ -33,6 +38,7 @@ export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly campaignOptionsFlow: CampaignOptionsFlow,
+    private readonly characterOptionsFlow: CharacterOptionsFlow,
     private readonly characterDraftFlow: CharacterDraftFlow,
     private readonly narrationFlow: NarrationFlow,
   ) {}
@@ -66,8 +72,17 @@ export class AiController {
   campaignOptions(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
   ) {
-    return this.campaignOptionsFlow.run(session.user.id, journeyId);
+    return this.campaignOptionsFlow.run(session.user.id, journeyId, dto);
+  }
+
+  @Post('journeys/:journeyId/character-options')
+  characterOptions(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+  ) {
+    return this.characterOptionsFlow.run(session.user.id, journeyId);
   }
 
   @Post('journeys/:journeyId/character-draft')

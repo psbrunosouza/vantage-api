@@ -60,7 +60,10 @@ export class ResourcesService {
       .where(
         and(eq(structures.id, structureId), eq(structures.journeyId, journeyId)),
       );
-    if (!structure) throw new NotFoundException('Structure not found.');
+    if (!structure) throw new NotFoundException({
+      code: 'STRUCTURE_NOT_FOUND',
+      message: 'Structure not found.',
+    });
 
     const [resource] = await this.db
       .insert(resources)
@@ -92,13 +95,19 @@ export class ResourcesService {
         );
 
       if (!actors) {
-        throw new BadRequestException('Mark a structure as Actors first.');
+        throw new BadRequestException({
+          code: 'ACTORS_MISSING',
+          message: 'Mark a structure as Actors first.',
+        });
       }
 
       const taken = new Set(actors.fields.map((field) => field.id));
 
       if (dto.fields.some((field) => taken.has(field.id))) {
-        throw new BadRequestException('New fields need new ids.');
+        throw new BadRequestException({
+          code: 'FIELD_IDS_REUSED',
+          message: 'New fields need new ids.',
+        });
       }
 
       const fields = [...actors.fields, ...dto.fields];
@@ -189,7 +198,10 @@ export class ResourcesService {
     const fields = await this.fieldsOf(journeyId, id);
 
     if (!fields.some((field) => field.id === fieldId && field.type === IMAGE)) {
-      throw new NotFoundException('Image field not found.');
+      throw new NotFoundException({
+        code: 'IMAGE_FIELD_NOT_FOUND',
+        message: 'Image field not found.',
+      });
     }
 
     const url = await this.imageStorage.replace(
@@ -210,7 +222,10 @@ export class ResourcesService {
       .innerJoin(structures, eq(structures.id, resources.structureId))
       .where(and(eq(resources.id, id), eq(structures.journeyId, journeyId)));
 
-    if (!resource) throw new NotFoundException('Resource not found.');
+    if (!resource) throw new NotFoundException({
+      code: 'RESOURCE_NOT_FOUND',
+      message: 'Resource not found.',
+    });
     return resource.fields;
   }
 }

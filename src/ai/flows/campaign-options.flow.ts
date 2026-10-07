@@ -5,17 +5,19 @@ import {
   createCampaignSchema,
 } from '../../campaigns/dto/create-campaign.dto.js';
 import { JourneysService } from '../../journeys/journeys.service.js';
-import { StructuresService } from '../../structures/structures.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
-import { describeJourney } from '../journey-context.js';
+import type { CampaignOptionsDto } from '../dto/campaign-options.dto.js';
 
 const PROMPT = [
-  'You design campaigns for a solo tabletop RPG played in Vantage, where the user invents the rule system.',
-  'Create three distinct campaigns that fit the journey: different conflicts, places and stakes.',
-  'Each premise is a pitch of two or three sentences. Each brief gives the narrator what it needs to run the story.',
-  'Use only concepts that fit the journey and its structures.',
-  'Write in the language of the journey name and description.',
+  'You design campaign worlds for Vantage.',
+  'Create three short campaign concepts with radically different premises.',
+  'Invent every concept from scratch.',
+  'Focus on bold, fun and surprising worlds with strong central ideas.',
+  'Each concept should create interesting situations, conflicts, discoveries and choices.',
+  'The three concepts must feel completely unrelated to each other.',
+  'Do not define the playable entity yet.',
+  'Write everything in Brazilian Portuguese.',
 ].join('\n');
 
 const OUTPUT = {
@@ -29,23 +31,31 @@ export class CampaignOptionsFlow {
   constructor(
     private readonly aiService: AiService,
     private readonly journeysService: JourneysService,
-    private readonly structuresService: StructuresService,
     private readonly runner: AgentRunner,
   ) {}
 
-  async run(userId: string, journeyId: string): Promise<CreateCampaignDto[]> {
+  async run(
+    userId: string,
+    journeyId: string,
+    dto: CampaignOptionsDto,
+  ): Promise<CreateCampaignDto[]> {
     await this.journeysService.ensureOwner(userId, journeyId);
 
-    const [credentials, journey, structures] = await Promise.all([
-      this.aiService.credentialsOf(userId),
-      this.journeysService.findOne(userId, journeyId),
-      this.structuresService.findAll(userId, journeyId),
-    ]);
+    const credentials = await this.aiService.credentialsOf(userId);
     const { campaigns } = await this.runner.submit(
       credentials,
       [
         { role: 'system', content: PROMPT },
-        { role: 'user', content: describeJourney(journey, structures) },
+        {
+          role: 'user',
+          content: [
+            'Create the three campaigns.',
+            dto.direction ? `Player direction: ${dto.direction}` : null,
+            dto.moods?.length ? `Moods: ${dto.moods.join(', ')}` : null,
+          ]
+            .filter((part) => part !== null)
+            .join('\n\n'),
+        },
       ],
       OUTPUT,
     );

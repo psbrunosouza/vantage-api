@@ -89,7 +89,10 @@ export class CharacterDraftFlow {
     ]);
 
     if (!campaign) {
-      throw new BadRequestException('Choose a campaign first.');
+      throw new BadRequestException({
+        code: 'CAMPAIGN_MISSING',
+        message: 'Choose a campaign first.',
+      });
     }
 
     const actors = structures.find(
@@ -97,7 +100,10 @@ export class CharacterDraftFlow {
     );
 
     if (!actors) {
-      throw new BadRequestException('Mark a structure as Actors first.');
+      throw new BadRequestException({
+        code: 'ACTORS_MISSING',
+        message: 'Mark a structure as Actors first.',
+      });
     }
 
     const context = [

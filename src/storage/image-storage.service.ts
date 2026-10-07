@@ -31,11 +31,17 @@ export class ImageStorageService {
     file: ImageFile | undefined,
     persist?: (url: string) => PromiseLike<unknown>,
   ): Promise<string> {
-    if (!file) throw new BadRequestException('Missing file.');
+    if (!file) throw new BadRequestException({
+      code: 'FILE_MISSING',
+      message: 'Missing file.',
+    });
 
     const extension = EXTENSIONS[file.mimetype];
     if (!extension) {
-      throw new UnsupportedMediaTypeException('Use PNG, JPEG or WebP.');
+      throw new UnsupportedMediaTypeException({
+        code: 'IMAGE_TYPE_UNSUPPORTED',
+        message: 'Use PNG, JPEG or WebP.',
+      });
     }
 
     const bucket = this.storage.from(bucketName);
@@ -45,7 +51,12 @@ export class ImageStorageService {
     const { error } = await bucket.upload(path, file.buffer, {
       contentType: file.mimetype,
     });
-    if (error) throw new BadGatewayException(error.message);
+    if (error) {
+      throw new BadGatewayException({
+        code: 'STORAGE_FAILED',
+        message: error.message,
+      });
+    }
 
     const url = bucket.getPublicUrl(path).data.publicUrl;
     await persist?.(url);

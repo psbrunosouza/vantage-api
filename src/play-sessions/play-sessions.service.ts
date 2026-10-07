@@ -80,8 +80,43 @@ export class PlaySessionsService {
       )
       .returning();
 
-    if (!folder) throw new NotFoundException('Folder not found.');
+    if (!folder) throw new NotFoundException({
+      code: 'FOLDER_NOT_FOUND',
+      message: 'Folder not found.',
+    });
     return folder;
+  }
+
+  async removeFolder(
+    userId: string,
+    journeyId: string,
+    id: string,
+  ): Promise<void> {
+    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(playSessions)
+        .where(
+          and(
+            eq(playSessions.journeyId, journeyId),
+            eq(playSessions.folderId, id),
+          ),
+        );
+      const [folder] = await tx
+        .delete(sessionFolders)
+        .where(
+          and(
+            eq(sessionFolders.journeyId, journeyId),
+            eq(sessionFolders.id, id),
+          ),
+        )
+        .returning({ id: sessionFolders.id });
+
+      if (!folder) throw new NotFoundException({
+        code: 'FOLDER_NOT_FOUND',
+        message: 'Folder not found.',
+      });
+    });
   }
 
   async createSession(userId: string, journeyId: string): Promise<PlaySession> {
@@ -116,8 +151,30 @@ export class PlaySessionsService {
       )
       .returning();
 
-    if (!session) throw new NotFoundException('Session not found.');
+    if (!session) throw new NotFoundException({
+      code: 'SESSION_NOT_FOUND',
+      message: 'Session not found.',
+    });
     return session;
+  }
+
+  async removeSession(
+    userId: string,
+    journeyId: string,
+    id: string,
+  ): Promise<void> {
+    await this.journeysService.ensureOwner(userId, journeyId);
+    const [session] = await this.db
+      .delete(playSessions)
+      .where(
+        and(eq(playSessions.journeyId, journeyId), eq(playSessions.id, id)),
+      )
+      .returning({ id: playSessions.id });
+
+    if (!session) throw new NotFoundException({
+      code: 'SESSION_NOT_FOUND',
+      message: 'Session not found.',
+    });
   }
 
   async arrange(
@@ -155,9 +212,10 @@ export class PlaySessionsService {
       current.folders.some((folder) => !folderPositions.has(folder.id)) ||
       current.sessions.some((session) => !placements.has(session.id))
     ) {
-      throw new BadRequestException(
-        'Layout must list every folder and session once.',
-      );
+      throw new BadRequestException({
+        code: 'SESSION_LAYOUT_INVALID',
+        message: 'Layout must list every folder and session once.',
+      });
     }
 
     await this.db.transaction(async (tx) => {
@@ -216,7 +274,10 @@ export class PlaySessionsService {
 
     if (dto.kind === 'narrator') {
       if (journey.narratorId !== userId) {
-        throw new ForbiddenException('Only the narrator can narrate.');
+        throw new ForbiddenException({
+          code: 'NARRATOR_ONLY',
+          message: 'Only the narrator can narrate.',
+        });
       }
 
       const [entry] = await this.db
@@ -240,9 +301,10 @@ export class PlaySessionsService {
       );
 
     if (!sheet || sheet.capability !== ACTOR) {
-      throw new ForbiddenException(
-        'You can only speak as an actor sheet you control.',
-      );
+      throw new ForbiddenException({
+        code: 'SHEET_NOT_CONTROLLED',
+        message: 'You can only speak as an actor sheet you control.',
+      });
     }
 
     const [entry] = await this.db
@@ -283,7 +345,10 @@ export class PlaySessionsService {
         ),
       );
 
-    if (!session) throw new NotFoundException('Session not found.');
+    if (!session) throw new NotFoundException({
+      code: 'SESSION_NOT_FOUND',
+      message: 'Session not found.',
+    });
   }
 
     private async treeOf(journeyId: string): Promise<SessionTree> {
