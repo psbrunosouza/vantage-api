@@ -127,6 +127,13 @@
       "when": 1791375574642,
       "tag": "0017_field_types_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791425674905,
+      "tag": "0018_campaign_brief",
+      "breakpoints": true
     }
   ]
 }

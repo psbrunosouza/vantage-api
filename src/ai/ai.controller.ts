@@ -16,28 +16,30 @@ import type { Auth } from '../auth/auth.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AiService } from './ai.service.js';
 import {
-  type CampaignOptionsDto,
-  campaignOptionsSchema,
-} from './dto/campaign-options.dto.js';
-import {
   type CharacterDraftDto,
   characterDraftSchema,
 } from './dto/character-draft.dto.js';
 import {
+  type SystemOptionsDto,
+  systemOptionsSchema,
+} from './dto/system-options.dto.js';
+import {
   type UpdateAiSettingsDto,
   updateAiSettingsSchema,
 } from './dto/update-ai-settings.dto.js';
-import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
+import { CampaignStartFlow } from './flows/campaign-start.flow.js';
 import { CharacterDraftFlow } from './flows/character-draft.flow.js';
 import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
+import { SystemOptionsFlow } from './flows/system-options.flow.js';
 
 @ApiTags('ai')
 @Controller('ai')
 export class AiController {
   constructor(
     private readonly aiService: AiService,
-    private readonly campaignOptionsFlow: CampaignOptionsFlow,
+    private readonly systemOptionsFlow: SystemOptionsFlow,
+    private readonly campaignStartFlow: CampaignStartFlow,
     private readonly characterOptionsFlow: CharacterOptionsFlow,
     private readonly characterDraftFlow: CharacterDraftFlow,
     private readonly narrationFlow: NarrationFlow,
@@ -68,13 +70,20 @@ export class AiController {
     return this.aiService.removeKey(session.user.id);
   }
 
-  @Post('journeys/:journeyId/campaign-options')
-  campaignOptions(
+  @Post('system-options')
+  systemOptions(
+    @Session() session: UserSession<Auth>,
+    @Body(new ZodValidationPipe(systemOptionsSchema)) dto: SystemOptionsDto,
+  ) {
+    return this.systemOptionsFlow.run(session.user.id, dto);
+  }
+
+  @Post('journeys/:journeyId/campaign-start')
+  campaignStart(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
-    @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
   ) {
-    return this.campaignOptionsFlow.run(session.user.id, journeyId, dto);
+    return this.campaignStartFlow.run(session.user.id, journeyId);
   }
 
   @Post('journeys/:journeyId/character-options')

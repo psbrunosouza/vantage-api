@@ -9,10 +9,11 @@ import { AgentRunner } from './agent-runner.js';
 import { AiKeyCipher } from './ai-key.cipher.js';
 import { AiController } from './ai.controller.js';
 import { AiService } from './ai.service.js';
-import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
+import { CampaignStartFlow } from './flows/campaign-start.flow.js';
 import { CharacterDraftFlow } from './flows/character-draft.flow.js';
 import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
+import { SystemOptionsFlow } from './flows/system-options.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
 
 @Module({
@@ -30,7 +31,8 @@ import { OpenRouterClient } from './openrouter.client.js';
     AiKeyCipher,
     OpenRouterClient,
     AgentRunner,
-    CampaignOptionsFlow,
+    SystemOptionsFlow,
+    CampaignStartFlow,
     CharacterOptionsFlow,
     CharacterDraftFlow,
     NarrationFlow,

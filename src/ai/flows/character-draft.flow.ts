@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CampaignsService } from '../../campaigns/campaigns.service.js';
 import { JourneysService } from '../../journeys/journeys.service.js';
 import type { StructureField } from '../../structures/structure-field.js';
 import { ACTOR } from '../../structures/structures.schema.js';
@@ -9,7 +8,6 @@ import { AgentRunner } from '../agent-runner.js';
 import { type AiCredentials, AiService } from '../ai.service.js';
 import { layoutFields } from '../field-layout.js';
 import {
-  describeCampaign,
   describeFields,
   describeJourney,
   fillableFields,
@@ -23,10 +21,10 @@ export interface CharacterDraft {
 
 const PROMPT = [
   'You create the player character for a solo tabletop RPG played in Vantage.',
-  'The character must fit the campaign and the rule system of the journey.',
+  'The character must fit the world and the rule system of the journey.',
   'Follow the player concept when there is one. Otherwise invent a compelling one.',
   'Numbers must be balanced for a starting character.',
-  'Write in the language of the campaign.',
+  'Write in the language of the journey.',
 ].join('\n');
 
 const DESIGN_PROMPT =
@@ -70,7 +68,6 @@ export class CharacterDraftFlow {
     private readonly aiService: AiService,
     private readonly journeysService: JourneysService,
     private readonly structuresService: StructuresService,
-    private readonly campaignsService: CampaignsService,
     private readonly runner: AgentRunner,
   ) {}
 
@@ -81,19 +78,11 @@ export class CharacterDraftFlow {
   ): Promise<CharacterDraft> {
     await this.journeysService.ensureOwner(userId, journeyId);
 
-    const [credentials, journey, structures, campaign] = await Promise.all([
+    const [credentials, journey, structures] = await Promise.all([
       this.aiService.credentialsOf(userId),
       this.journeysService.findOne(userId, journeyId),
       this.structuresService.findAll(userId, journeyId),
-      this.campaignsService.find(userId, journeyId),
     ]);
-
-    if (!campaign) {
-      throw new BadRequestException({
-        code: 'CAMPAIGN_MISSING',
-        message: 'Choose a campaign first.',
-      });
-    }
 
     const actors = structures.find(
       (structure) => structure.capability === ACTOR,
@@ -108,7 +97,6 @@ export class CharacterDraftFlow {
 
     const context = [
       describeJourney(journey, structures),
-      describeCampaign(campaign),
       `Player concept: ${concept || 'none, invent one'}`,
     ].join('\n\n');
     const fillable = fillableFields(actors.fields);

@@ -13,6 +13,7 @@ import { memberResources } from '../members/members.schema.js';
 import { resources } from '../resources/resources.schema.js';
 import { ACTOR, structures } from '../structures/structures.schema.js';
 import type { ArrangeSessionTreeDto } from './dto/arrange-session-tree.dto.js';
+import type { CreatePlaySessionDto } from './dto/create-play-session.dto.js';
 import type { CreateSessionEntryDto } from './dto/create-session-entry.dto.js';
 import type { CreateSessionFolderDto } from './dto/create-session-folder.dto.js';
 import type { UpdatePlaySessionDto } from './dto/update-play-session.dto.js';
@@ -119,8 +120,18 @@ export class PlaySessionsService {
     });
   }
 
-  async createSession(userId: string, journeyId: string): Promise<PlaySession> {
+  async createSession(
+    userId: string,
+    journeyId: string,
+    dto: CreatePlaySessionDto,
+  ): Promise<PlaySession> {
     await this.journeysService.ensureOwner(userId, journeyId);
+    const folderId = dto.folderId ?? null;
+
+    if (folderId !== null) {
+      await this.ensureFolder(journeyId, folderId);
+    }
+
     const [{ total }] = await this.db
       .select({ total: count() })
       .from(playSessions)
@@ -129,8 +140,12 @@ export class PlaySessionsService {
       .insert(playSessions)
       .values({
         journeyId,
+        folderId,
         title: `Session ${total + 1}`,
-        position: await this.topPosition(journeyId),
+        position:
+          folderId === null
+            ? await this.topPosition(journeyId)
+            : await this.folderTopPosition(folderId),
       })
       .returning();
     return session;
@@ -349,6 +364,34 @@ export class PlaySessionsService {
       code: 'SESSION_NOT_FOUND',
       message: 'Session not found.',
     });
+  }
+
+  private async ensureFolder(
+    journeyId: string,
+    folderId: string,
+  ): Promise<void> {
+    const [folder] = await this.db
+      .select({ id: sessionFolders.id })
+      .from(sessionFolders)
+      .where(
+        and(
+          eq(sessionFolders.journeyId, journeyId),
+          eq(sessionFolders.id, folderId),
+        ),
+      );
+
+    if (!folder) throw new NotFoundException({
+      code: 'FOLDER_NOT_FOUND',
+      message: 'Folder not found.',
+    });
+  }
+
+  private async folderTopPosition(folderId: string): Promise<number> {
+    const [{ top }] = await this.db
+      .select({ top: min(playSessions.position) })
+      .from(playSessions)
+      .where(eq(playSessions.folderId, folderId));
+    return top === null ? 0 : top - 1;
   }
 
     private async treeOf(journeyId: string): Promise<SessionTree> {

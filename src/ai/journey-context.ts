@@ -77,17 +77,36 @@ export function describeJourney(
 }
 
 export function describeCampaign(campaign: Campaign): string {
-  const { setting, tone, hook, objective, npcs } = campaign.brief;
+  const {
+    opening,
+    setting,
+    culture,
+    politics,
+    tone,
+    localTheme,
+    hook,
+    problem,
+    escalation,
+    complications,
+    npcs,
+  } = campaign.brief;
 
   return [
     `Campaign: ${campaign.title}`,
     `Premise: ${campaign.premise}`,
+    `Opening: ${opening}`,
     `Setting: ${setting}`,
+    `Culture and people: ${culture}`,
+    `Politics: ${politics}`,
     `Tone: ${tone}`,
+    `Local theme: ${localTheme}`,
     `Hook: ${hook}`,
-    `Objective: ${objective}`,
+    `Central problem: ${problem}`,
+    `Escalation: ${escalation}`,
+    'Related problems:',
+    ...complications.map((complication) => `- ${complication}`),
     'NPCs:',
-    ...npcs.map((npc) => `- ${npc.name}: ${npc.role}`),
+    ...npcs.map((npc) => `- ${npc.name} (${npc.role}): ${npc.description}`),
   ].join('\n');
 }
 

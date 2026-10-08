@@ -20,6 +20,10 @@ import {
   arrangeSessionTreeSchema,
 } from './dto/arrange-session-tree.dto.js';
 import {
+  type CreatePlaySessionDto,
+  createPlaySessionSchema,
+} from './dto/create-play-session.dto.js';
+import {
   type CreateSessionEntryDto,
   createSessionEntrySchema,
 } from './dto/create-session-entry.dto.js';
@@ -108,8 +112,14 @@ export class PlaySessionsController {
   createSession(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Body(new ZodValidationPipe(createPlaySessionSchema))
+    dto: CreatePlaySessionDto,
   ) {
-    return this.playSessionsService.createSession(session.user.id, journeyId);
+    return this.playSessionsService.createSession(
+      session.user.id,
+      journeyId,
+      dto,
+    );
   }
 
   @Patch('play-sessions/:id')

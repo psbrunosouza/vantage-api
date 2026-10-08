@@ -1,19 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CampaignsService } from '../../campaigns/campaigns.service.js';
 import { JourneysService } from '../../journeys/journeys.service.js';
 import { ACTOR } from '../../structures/structures.schema.js';
 import { StructuresService } from '../../structures/structures.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
-import { describeCampaign, describeJourney } from '../journey-context.js';
+import { describeJourney } from '../journey-context.js';
 
 const PROMPT = [
   'You suggest player characters for a solo tabletop RPG played in Vantage.',
-  'Create three distinct characters that fit the campaign: different backgrounds, motives and ways to solve problems.',
+  'Create three distinct characters that fit the world of the journey: different backgrounds, motives and ways to solve problems.',
   'Each role is two to four words. Each hook is one sentence about what drives or haunts the character.',
   'Give two or three short traits per character.',
-  'Write in the language of the campaign.',
+  'Write in the language of the journey.',
 ].join('\n');
 
 export const characterOptionSchema = z.object({
@@ -37,26 +36,17 @@ export class CharacterOptionsFlow {
     private readonly aiService: AiService,
     private readonly journeysService: JourneysService,
     private readonly structuresService: StructuresService,
-    private readonly campaignsService: CampaignsService,
     private readonly runner: AgentRunner,
   ) {}
 
   async run(userId: string, journeyId: string): Promise<CharacterOption[]> {
     await this.journeysService.ensureOwner(userId, journeyId);
 
-    const [credentials, journey, structures, campaign] = await Promise.all([
+    const [credentials, journey, structures] = await Promise.all([
       this.aiService.credentialsOf(userId),
       this.journeysService.findOne(userId, journeyId),
       this.structuresService.findAll(userId, journeyId),
-      this.campaignsService.find(userId, journeyId),
     ]);
-
-    if (!campaign) {
-      throw new BadRequestException({
-        code: 'CAMPAIGN_MISSING',
-        message: 'Choose a campaign first.',
-      });
-    }
 
     if (!structures.some((structure) => structure.capability === ACTOR)) {
       throw new BadRequestException({
@@ -69,13 +59,7 @@ export class CharacterOptionsFlow {
       credentials,
       [
         { role: 'system', content: PROMPT },
-        {
-          role: 'user',
-          content: [
-            describeJourney(journey, structures),
-            describeCampaign(campaign),
-          ].join('\n\n'),
-        },
+        { role: 'user', content: describeJourney(journey, structures) },
       ],
       OUTPUT,
     );
