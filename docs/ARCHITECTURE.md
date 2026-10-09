@@ -12,7 +12,7 @@ API do Vantage. Consumida por `frontend/` via proxy `/api/*`.
 - Vitest.
 - ESLint + Prettier.
 - Docker Compose (dev): API com hot reload (bind mount, `node_modules` em volume) + Postgres.
-- Dockerfile: stage `dev` (compose) e `production` (final).
+- Dockerfile: stage `dev` (compose: `db:migrate` + `db:seed` + hot reload) e `production` (final: `dist/database/migrate.js` + `dist/database/seed.js` + API, a cada boot; leva `dist` e `drizzle/`; exige `SYSTEM_USER_*`).
 - Auth: Better Auth + `@thallesp/nestjs-better-auth`. Sessão em banco + cookie.
 - Arquivos: Supabase Storage (só storage) via `@supabase/supabase-js`, secret key no backend.
 - Sem realtime até precisar. Realtime → gateway WebSocket do Nest.
@@ -59,7 +59,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Fixo (sistema, mesa, usuário, ids, relações) → colunas.
 - Definido pelo usuário (peças e layout da estrutura, valores do recurso) → `jsonb`.
 - Valores do recurso validados por Zod montado em runtime a partir da estrutura.
-- Migrations: `drizzle-kit generate` + `migrate`, versionadas. `push` só local.
+- Migrations: `drizzle-kit generate` + `migrate`, versionadas. `push` só local. Produção aplica com o migrator do `drizzle-orm` (`src/database/migrate.ts`, sem `drizzle-kit`).
 
 ## Auth
 
@@ -132,7 +132,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `session_folders` = pasta de sessões. Pertence a uma journey (cascade). 1 nível: pasta não contém pasta.
 - `play_sessions` = sessão de jogo (chat). Pertence a uma journey (cascade). `folder_id` nulo = raiz; pasta apagada → `set null`. Nome `play_sessions` porque `sessions` é do Better Auth.
 - `position`: pastas e sessões soltas dividem a ordem da raiz; sessões de pasta têm ordem própria dentro dela.
-- Rotas em `/api/journeys/:journeyId/`: `GET session-tree` (`{ folders, sessions }` ordenados por `position`), `PUT session-tree` (`{ items }`: layout inteiro), `POST session-folders` (`{ name }`), `PATCH session-folders/:id`, `DELETE session-folders/:id`, `POST play-sessions` (sem body), `PATCH play-sessions/:id` (`{ title }`), `DELETE play-sessions/:id`. Leitura: quem vê a journey. Escrita: só dono.
+- Rotas em `/api/journeys/:journeyId/`: `GET session-tree` (`{ folders, sessions }` ordenados por `position`), `PUT session-tree` (`{ items }`: layout inteiro), `POST session-folders` (`{ name }`), `PATCH session-folders/:id`, `DELETE session-folders/:id`, `POST play-sessions` (`{ folderId? }`: pasta da journey, senão `404`; entra no topo da pasta ou da raiz), `PATCH play-sessions/:id` (`{ title }`), `DELETE play-sessions/:id`. Leitura: quem vê a journey. Escrita: só dono.
 - `DELETE session-folders/:id` apaga a pasta e as sessões dentro dela, numa transação. `DELETE play-sessions/:id` apaga a sessão. Entradas das sessões apagadas vão junto (cascade). Fora da journey → `404`.
 - Criação (pasta ou sessão) entra no topo da raiz (`min(position) - 1`). Sessão nasce `Session N` (N = total da journey + 1).
 - `PUT session-tree`: `items` lista cada pasta (com `sessionIds`) e cada sessão solta da journey exatamente uma vez, senão `400`. Atualiza só o que mudou, numa transação.
@@ -151,15 +151,17 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `AgentRunner`: `reply` (loop de tools, máx. 6 passos; o último força `tool_choice: 'none'`) e `submit` (saída estruturada: obriga a chamar uma tool cujo input é o resultado, validado por Zod; inválido volta pra IA com o erro, máx. 3 tentativas). Erro de Zod ou `HttpException` numa tool volta pra IA; outro erro sobe.
 - Tools (`ai/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
 - `journey-context.ts`: journey, structures, campanha e ficha em texto compacto (label, nunca id).
-- Flows (`ai/flows/`), rotas em `/api/ai/journeys/:journeyId/`:
-  - `POST campaign-options` (`{ direction?, moods? }`) → 3 campanhas (`submit`, schema de `createCampaignSchema`). Sem contexto da journey (nome, descrição, structures); só direção e moods do jogador. Não salva.
-  - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Exige campanha e structure de actors (`400`). Não salva.
-  - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Exige campanha e structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
+- Flows (`ai/flows/`):
+  - `POST /api/ai/system-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem journey. Não salva.
+- Flows em `/api/ai/journeys/:journeyId/`:
+  - `POST campaign-start` → IA cria campanha local no mundo da journey (contexto: journey + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
+  - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Contexto: journey (nome, descrição, structures). Exige structure de actors (`400`). Não salva.
+  - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Contexto: journey. Exige structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.
 
 ## Campaigns
 
-- `campaigns` = campanha da journey. `journey_id` unique (1 por journey, cascade). `title`, `premise`, `brief` (`jsonb`, `campaignBriefSchema`: `setting`, `tone`, `hook`, `objective`, `npcs[{ name, role }]`).
+- `campaigns` = campanha da journey. `journey_id` unique (1 por journey, cascade). `title`, `premise`, `brief` (`jsonb`, `campaignBriefSchema`: `opening`, `setting`, `culture`, `politics`, `tone`, `localTheme`, `hook`, `problem`, `escalation`, `complications[]`, `npcs[{ name, role, description }]`).
 - Rotas em `/api/journeys/:journeyId/campaign`: `GET` (campanha ou `null`, quem vê a journey), `POST` (só dono; já existe → `409`), `PUT` (só dono; cria ou substitui).
 
 ## Characters
@@ -172,6 +174,8 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `templates` = templates de journey (`id` slug, `name`, `summary`, `icon`, `color`, `position`). `template_categories` = categorias do template (PK `(template_id, position)`, `name`, `icon`, cascade).
 - `GET /api/templates` → templates ordenados por `position`, cada um com `categories: [{ name, icon }]`.
 - Só leitura. Dados vêm de `src/database/seed.ts`: upsert por `id`, categorias recriadas.
+- Catálogo estático (prefixo `catalog_`, só seed escreve, sem rota; leitura via `CatalogService`): `catalog_themes` (`id` identity, `name` unique), `catalog_species` (`id` do arquivo, `name`, `category`), `catalog_species_themes` (PK `(species_id, theme_id)`, cascade nos dois, índice em `theme_id`).
+- Seeds em `src/catalog/` (`themes.seed.ts`, `species.seed.ts`). Fontes em `src/database/seeds/` (copiadas pro `dist` via assets do `nest-cli.json`): `themes.txt` (nomes separados por vírgula) e `species.json` (`{ species: [{ id, name, category, themes[] }] }`). `seed.ts` chama `seedThemes` e depois `seedSpecies`: só adiciona (tema, espécie por `id` e vínculo novos); nunca atualiza nem apaga. Diff em memória, só grava o que é novo, lotes de 5000. Tema citado na espécie e ausente em `themes.txt` → sem vínculo.
 
 ## Contrato
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CampaignsModule } from '../campaigns/campaigns.module.js';
+import { CatalogModule } from '../catalog/catalog.module.js';
 import { JourneysModule } from '../journeys/journeys.module.js';
 import { MembersModule } from '../members/members.module.js';
 import { PlaySessionsModule } from '../play-sessions/play-sessions.module.js';
@@ -24,6 +25,7 @@ import { OpenRouterClient } from './openrouter.client.js';
     MembersModule,
     PlaySessionsModule,
     CampaignsModule,
+    CatalogModule,
   ],
   controllers: [AiController],
   providers: [

@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
 import { accounts, users } from '../auth/auth.schema.js';
+import { seedSpecies } from '../catalog/species.seed.js';
+import { seedThemes } from '../catalog/themes.seed.js';
 import { fieldTypes } from '../fields/fields.schema.js';
 import {
   templateCategories,
@@ -204,5 +206,9 @@ await db.transaction(async (tx) => {
   }
 });
 console.log('Field types and templates seeded.');
+
+await seedThemes(db);
+await seedSpecies(db);
+console.log('Catalog seeded.');
 
 await db.$client.end();
