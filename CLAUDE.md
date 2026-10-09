@@ -23,9 +23,12 @@
 
 ## Testes
 
-- Feature nova ou alterada → criar testes.
-- Meta: cobertura ≥ 80%.
-- Sem backfill em massa. Código existente sem teste → cobrir à medida que a necessidade aparecer.
+- Spec por feature: regra de service ou feature que pode quebrar fluxo.
+- Não criar spec pra código trivial ou aleatório.
+- Feature nova ou alterada → criar ou atualizar spec dela.
+- Antes de fechar tarefa → checar se feature tocada tem spec. Faltou → criar.
+- Escopo = código da tarefa. Não retestar o sistema inteiro.
+- Sem backfill em massa.
 
 ## Execução
 
