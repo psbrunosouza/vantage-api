@@ -40,6 +40,7 @@ import { PopulationFlow } from './flows/population.flow.js';
 import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
+import { SystemWorldsFlow } from './flows/system-worlds.flow.js';
 import { WorldSources } from './world-source.js';
 
 @ApiTags('ai')
@@ -55,6 +56,7 @@ export class AiController {
     private readonly structureProposalsFlow: StructureProposalsFlow,
     private readonly populationFlow: PopulationFlow,
     private readonly sessionZeroQuestionsFlow: SessionZeroQuestionsFlow,
+    private readonly systemWorldsFlow: SystemWorldsFlow,
     private readonly worldSources: WorldSources,
   ) {}
 
@@ -89,6 +91,15 @@ export class AiController {
     @Body(new ZodValidationPipe(systemOptionsSchema)) dto: SystemOptionsDto,
   ) {
     return this.systemOptionsFlow.run(session.user.id, dto);
+  }
+
+  @Post('system-drafts/:draftId/worlds')
+  systemWorlds(
+    @Session() session: UserSession<Auth>,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body(new ZodValidationPipe(systemOptionsSchema)) dto: SystemOptionsDto,
+  ) {
+    return this.systemWorldsFlow.run(session.user.id, draftId, dto);
   }
 
   @Post('journeys/:journeyId/campaign-start')

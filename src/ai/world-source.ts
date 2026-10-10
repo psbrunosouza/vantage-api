@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { Campaign } from '../campaigns/campaigns.schema.js';
 import { CampaignsService } from '../campaigns/campaigns.service.js';
 import type { Journey } from '../journeys/journeys.schema.js';
@@ -59,7 +59,7 @@ export interface WorldSource {
   ): Promise<WorldResource[]>;
 }
 
-interface DraftSlot {
+export interface DraftSlot {
   system: DraftSystem;
   world: DraftWorld;
   save(world: DraftWorld): Promise<void>;
@@ -104,17 +104,29 @@ export class WorldSources {
     };
   }
 
-  async ofDraft(
-    userId: string,
-    draftId: string,
-    option?: number,
-  ): Promise<WorldSource> {
-    const [draft, systemStructureTags, systemFieldTags] = await Promise.all([
-      this.systemDraftsService.findOpen(userId, draftId),
+  async ofDraft(userId: string, draftId: string): Promise<WorldSource> {
+    const draft = await this.systemDraftsService.findOpen(userId, draftId);
+
+    return this.ofSlot(draft, {
+      system: draft.system,
+      world: {
+        structures: draft.structures,
+        resources: draft.resources,
+        hooks: draft.hooks,
+      },
+      save: async (world) => {
+        await this.systemDraftsService.update(userId, draftId, {
+          resources: world.resources,
+        });
+      },
+    });
+  }
+
+  async ofSlot(draft: SystemDraft, slot: DraftSlot): Promise<WorldSource> {
+    const [systemStructureTags, systemFieldTags] = await Promise.all([
       this.tagsService.findSystemStructureTags(),
       this.tagsService.findSystemFieldTags(),
     ]);
-    const slot = this.slotOf(userId, draft, option);
     const structureTags = [
       ...systemStructureTags,
       ...draft.structureTags.map((tag) => draftTag(draft.id, tag)),
@@ -123,8 +135,6 @@ export class WorldSources {
       ...systemFieldTags,
       ...draft.fieldTags.map((tag) => draftTag(draft.id, tag)),
     ];
-    let world = slot.world;
-
     return {
       journey: async () => ({
         name: slot.system.name ?? '',
@@ -132,60 +142,18 @@ export class WorldSources {
         mainDie: slot.system.mainDie ?? null,
       }),
       campaign: async () => null,
-      structures: async () => draftStructures(world.structures, structureTags),
-      resources: async () => world.resources,
+      structures: async () =>
+        draftStructures(slot.world.structures, structureTags),
+      resources: async () => slot.world.resources,
       structureTags: async () => structureTags,
       fieldTags: async () => fieldTags,
       replaceResources: async (removed, created) => {
-        const resources = replacedResources(world, removed, created);
+        const resources = replacedResources(slot.world, removed, created);
 
-        world = { ...world, resources };
-        await slot.save(world);
+        slot.world = { ...slot.world, resources };
+        await slot.save(slot.world);
         return resources;
       },
-    };
-  }
-
-  private slotOf(
-    userId: string,
-    draft: SystemDraft,
-    option: number | undefined,
-  ): DraftSlot {
-    if (option === undefined) {
-      return {
-        system: draft.system,
-        world: {
-          structures: draft.structures,
-          resources: draft.resources,
-          hooks: draft.hooks,
-        },
-        save: async (world) => {
-          await this.systemDraftsService.update(userId, draft.id, {
-            resources: world.resources,
-          });
-        },
-      };
-    }
-
-    const chosen = draft.options.at(option);
-
-    if (option < 0 || !chosen) {
-      throw new NotFoundException({
-        code: 'DRAFT_OPTION_NOT_FOUND',
-        message: 'Campaign option not found.',
-      });
-    }
-
-    return {
-      system: { ...draft.system, description: chosen.option.theme },
-      world: chosen.world ?? { structures: [], resources: [], hooks: [] },
-      save: (world) =>
-        this.systemDraftsService.saveOptionWorld(
-          userId,
-          draft.id,
-          option,
-          world,
-        ),
     };
   }
 }

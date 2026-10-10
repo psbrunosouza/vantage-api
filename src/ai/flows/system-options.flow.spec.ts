@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { themeSets } from './system-options.flow.js';
+import { campaignGoals, themeSets } from './system-options.flow.js';
 
 describe('themeSets', () => {
   it('uses the chosen themes for every campaign', () => {
@@ -16,5 +16,18 @@ describe('themeSets', () => {
       ['wuxia'],
       ['cyberpunk'],
     ]);
+  });
+});
+
+describe('campaignGoals', () => {
+  it('gives each campaign a different goal', () => {
+    const goals = campaignGoals();
+
+    expect(goals).toHaveLength(3);
+    expect(new Set(goals).size).toBe(3);
+  });
+
+  it('shuffles with the given random source', () => {
+    expect(campaignGoals(() => 0)).toEqual(['hunt', 'steal', 'rescue']);
   });
 });

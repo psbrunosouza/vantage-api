@@ -20,7 +20,7 @@ import type {
   WorldStructure,
 } from '../world-source.js';
 
-const RECORDS = 4;
+const RECORDS = { min: 6, max: 10 };
 const REQUESTED = 8;
 const HOOKS = 3;
 
@@ -55,6 +55,11 @@ interface RecordDraft {
   structure: WorldStructure;
   name: string;
   values: Record<string, unknown>;
+}
+
+interface RecordRange {
+  min: number;
+  max: number;
 }
 
 interface Keyed {
@@ -128,17 +133,18 @@ export class PopulationFlow {
     const replaced = dto.request
       ? []
       : replacements(world, resources, dto.replace);
+    const targets: { structure: WorldStructure; count: number | RecordRange }[] =
+      replaced.length > 0
+        ? replaced
+        : populationTargets(structures, resources).map((structure) => ({
+            structure,
+            count: RECORDS,
+          }));
     const drafts = dto.request
       ? await this.request(credentials, context, world, fieldTags, dto.request)
       : (
           await Promise.all(
-            (replaced.length > 0
-              ? replaced
-              : populationTargets(structures, resources).map((structure) => ({
-                  structure,
-                  count: RECORDS,
-                }))
-            ).map(({ structure, count }) =>
+            targets.map(({ structure, count }) =>
               this.draft(credentials, context, structure, fieldTags, count),
             ),
           )
@@ -169,13 +175,16 @@ export class PopulationFlow {
     context: string,
     structure: WorldStructure,
     fieldTags: readonly WorldFieldTag[],
-    count: number,
+    count: number | RecordRange,
   ): Promise<RecordDraft[]> {
+    const { min, max } =
+      typeof count === 'number' ? { min: count, max: count } : count;
+    const amount = min === max ? `${min}` : `between ${min} and ${max}`;
     const keyed = keysOf(fillableFields(structure.fields));
     const { records } = await this.runner.submit(
       credentials,
       [
-        { role: 'system', content: `${PROMPT}\nCreate ${count} records.` },
+        { role: 'system', content: `${PROMPT}\nCreate ${amount} records.` },
         {
           role: 'user',
           content: [
@@ -197,7 +206,7 @@ export class PopulationFlow {
               }),
             )
             .min(1)
-            .max(count),
+            .max(max),
         }),
       },
     );

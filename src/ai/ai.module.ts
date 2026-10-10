@@ -20,6 +20,7 @@ import { PopulationFlow } from './flows/population.flow.js';
 import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
+import { SystemWorldsFlow } from './flows/system-worlds.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
 import { WorldSources } from './world-source.js';
 
@@ -49,6 +50,7 @@ import { WorldSources } from './world-source.js';
     StructureProposalsFlow,
     PopulationFlow,
     SessionZeroQuestionsFlow,
+    SystemWorldsFlow,
     WorldSources,
   ],
   exports: [AiService],

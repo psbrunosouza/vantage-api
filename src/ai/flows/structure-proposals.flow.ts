@@ -9,11 +9,12 @@ import type { StructureProposalsDto } from '../dto/structure-proposals.dto.js';
 import type { WorldSource } from '../world-source.js';
 import { STRUCTURE_ICONS } from './system-options.flow.js';
 
-const STRUCTURES = 6;
+const MIN_STRUCTURES = 6;
+const MAX_STRUCTURES = 14;
 
 const PROMPT = [
   'You design the data model of a solo tabletop RPG played in Vantage.',
-  `Propose ${STRUCTURES} structures built from the campaign and its themes. A structure groups sheets of one kind, such as crew, places, factions, items or documents. Each name is a plural noun of one or two words.`,
+  `Propose between ${MIN_STRUCTURES} and ${MAX_STRUCTURES} structures built from the campaign and its themes, as many as the world needs. A structure groups sheets of one kind, such as crew, places, factions, items or documents. Each name is a plural noun of one or two words.`,
   'The first structure holds the player characters and has the atores tag. Name it after who the players are in this world, such as crew, party or squad.',
   'When the journey lists suggested structures, prefer them and complete the set.',
   'Give each structure one or more structure tags from the list, using their slugs. The description of a tag says what it means for the game master.',
@@ -46,7 +47,9 @@ const proposalSchema = z.object({
 const OUTPUT = {
   name: 'submit_structures',
   description: 'Submits the proposed structures.',
-  input: z.object({ structures: z.array(proposalSchema).min(1) }),
+  input: z.object({
+    structures: z.array(proposalSchema).min(1).max(MAX_STRUCTURES),
+  }),
 };
 
 export interface StructureProposal {

@@ -6,8 +6,10 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { z } from 'zod';
+import { KeyedLimiter } from './keyed-limiter.js';
 
 const BASE_URL = 'https://openrouter.ai/api/v1';
+const CONCURRENT_CHATS = 8;
 const UNREACHABLE = {
   code: 'AI_PROVIDER_UNREACHABLE',
   message: "Couldn't reach OpenRouter.",
@@ -93,6 +95,8 @@ export interface ChatRequest {
 
 @Injectable()
 export class OpenRouterClient {
+  private readonly limiter = new KeyedLimiter(CONCURRENT_CHATS);
+
   async listToolModels(): Promise<AiModel[]> {
     const response = await this.request('/models?supported_parameters=tools');
 
@@ -119,7 +123,14 @@ export class OpenRouterClient {
     return true;
   }
 
-  async chat(apiKey: string, request: ChatRequest): Promise<ChatReply> {
+  chat(apiKey: string, request: ChatRequest): Promise<ChatReply> {
+    return this.limiter.run(apiKey, () => this.complete(apiKey, request));
+  }
+
+  private async complete(
+    apiKey: string,
+    request: ChatRequest,
+  ): Promise<ChatReply> {
     const response = await this.request('/chat/completions', {
       method: 'POST',
       headers: {

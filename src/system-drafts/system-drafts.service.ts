@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { createJourneySchema } from '../journeys/dto/create-journey.dto.js';
@@ -26,7 +26,6 @@ import {
 import { TAG_EXISTS, slugify } from '../tags/tags.service.js';
 import type {
   DraftStructure,
-  DraftWorld,
   SystemDraftDto,
 } from './dto/system-draft.dto.js';
 import {
@@ -270,22 +269,6 @@ export class SystemDraftsService {
 
       return journey;
     });
-  }
-
-  async saveOptionWorld(
-    ownerId: string,
-    id: string,
-    index: number,
-    world: DraftWorld,
-  ): Promise<void> {
-    await this.findOpen(ownerId, id);
-    await this.db
-      .update(systemDrafts)
-      .set({
-        options: sql`jsonb_set(${systemDrafts.options}, ${`{${index},world}`}::text[], ${JSON.stringify(world)}::jsonb)`,
-        updatedAt: new Date(),
-      })
-      .where(this.ownedBy(ownerId, id));
   }
 
   async findOpen(
