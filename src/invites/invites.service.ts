@@ -68,10 +68,11 @@ export class InvitesService {
       .innerJoin(users, eq(users.id, journeys.ownerId))
       .where(eq(journeys.inviteCode, code));
 
-    if (!found) throw new NotFoundException({
-      code: 'INVITE_NOT_FOUND',
-      message: 'Invite not found.',
-    });
+    if (!found)
+      throw new NotFoundException({
+        code: 'INVITE_NOT_FOUND',
+        message: 'Invite not found.',
+      });
 
     return {
       ...found,
@@ -85,10 +86,11 @@ export class InvitesService {
       .from(journeys)
       .where(eq(journeys.inviteCode, code));
 
-    if (!journey) throw new NotFoundException({
-      code: 'INVITE_NOT_FOUND',
-      message: 'Invite not found.',
-    });
+    if (!journey)
+      throw new NotFoundException({
+        code: 'INVITE_NOT_FOUND',
+        message: 'Invite not found.',
+      });
 
     await this.db.transaction(async (tx) => {
       const members = await tx

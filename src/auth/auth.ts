@@ -8,12 +8,7 @@ import { Resend } from 'resend';
 import type { Env } from '../env.js';
 import { authEmail, type AuthEmailKind } from './auth-emails.js';
 import * as schema from './auth.schema.js';
-import {
-  LOCALES,
-  acceptedLocale,
-  localeOf,
-  parseLocale,
-} from './locales.js';
+import { LOCALES, acceptedLocale, localeOf, parseLocale } from './locales.js';
 
 export function createAuth(
   db: NodePgDatabase,

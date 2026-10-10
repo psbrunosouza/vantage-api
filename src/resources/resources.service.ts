@@ -17,7 +17,8 @@ import {
   ImageStorageService,
 } from '../storage/image-storage.service.js';
 import type { StructureField } from '../structures/structure-field.js';
-import { ACTOR, structures } from '../structures/structures.schema.js';
+import { structures } from '../structures/structures.schema.js';
+import { hasActorsTag } from '../tags/actors.js';
 import type { CreateCharacterDto } from './dto/create-character.dto.js';
 import type { CreateResourceDto } from './dto/create-resource.dto.js';
 import type { UpdateResourceDto } from './dto/update-resource.dto.js';
@@ -58,12 +59,16 @@ export class ResourcesService {
       .select({ fields: structures.fields })
       .from(structures)
       .where(
-        and(eq(structures.id, structureId), eq(structures.journeyId, journeyId)),
+        and(
+          eq(structures.id, structureId),
+          eq(structures.journeyId, journeyId),
+        ),
       );
-    if (!structure) throw new NotFoundException({
-      code: 'STRUCTURE_NOT_FOUND',
-      message: 'Structure not found.',
-    });
+    if (!structure)
+      throw new NotFoundException({
+        code: 'STRUCTURE_NOT_FOUND',
+        message: 'Structure not found.',
+      });
 
     const [resource] = await this.db
       .insert(resources)
@@ -74,6 +79,31 @@ export class ResourcesService {
       })
       .returning();
     return resource;
+  }
+
+  async removeMany(
+    userId: string,
+    journeyId: string,
+    ids: readonly string[],
+  ): Promise<void> {
+    await this.journeysService.ensureOwner(userId, journeyId);
+
+    if (ids.length === 0) return;
+
+    await this.db
+      .delete(resources)
+      .where(
+        and(
+          inArray(resources.id, [...ids]),
+          inArray(
+            resources.structureId,
+            this.db
+              .select({ id: structures.id })
+              .from(structures)
+              .where(eq(structures.journeyId, journeyId)),
+          ),
+        ),
+      );
   }
 
   async createCharacter(
@@ -88,16 +118,15 @@ export class ResourcesService {
         .select({ id: structures.id, fields: structures.fields })
         .from(structures)
         .where(
-          and(
-            eq(structures.journeyId, journeyId),
-            eq(structures.capability, ACTOR),
-          ),
-        );
+          and(eq(structures.journeyId, journeyId), hasActorsTag(structures.id)),
+        )
+        .orderBy(asc(structures.createdAt))
+        .limit(1);
 
       if (!actors) {
         throw new BadRequestException({
           code: 'ACTORS_MISSING',
-          message: 'Mark a structure as Actors first.',
+          message: 'Tag a structure as Actors first.',
         });
       }
 
@@ -222,10 +251,11 @@ export class ResourcesService {
       .innerJoin(structures, eq(structures.id, resources.structureId))
       .where(and(eq(resources.id, id), eq(structures.journeyId, journeyId)));
 
-    if (!resource) throw new NotFoundException({
-      code: 'RESOURCE_NOT_FOUND',
-      message: 'Resource not found.',
-    });
+    if (!resource)
+      throw new NotFoundException({
+        code: 'RESOURCE_NOT_FOUND',
+        message: 'Resource not found.',
+      });
     return resource.fields;
   }
 }

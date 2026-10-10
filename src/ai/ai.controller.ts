@@ -19,6 +19,11 @@ import {
   type CharacterDraftDto,
   characterDraftSchema,
 } from './dto/character-draft.dto.js';
+import { type PopulationDto, populationSchema } from './dto/population.dto.js';
+import {
+  type StructureProposalsDto,
+  structureProposalsSchema,
+} from './dto/structure-proposals.dto.js';
 import {
   type SystemOptionsDto,
   systemOptionsSchema,
@@ -31,6 +36,8 @@ import { CampaignStartFlow } from './flows/campaign-start.flow.js';
 import { CharacterDraftFlow } from './flows/character-draft.flow.js';
 import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
+import { PopulationFlow } from './flows/population.flow.js';
+import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
 
 @ApiTags('ai')
@@ -43,6 +50,8 @@ export class AiController {
     private readonly characterOptionsFlow: CharacterOptionsFlow,
     private readonly characterDraftFlow: CharacterDraftFlow,
     private readonly narrationFlow: NarrationFlow,
+    private readonly structureProposalsFlow: StructureProposalsFlow,
+    private readonly populationFlow: PopulationFlow,
   ) {}
 
   @Get('models')
@@ -84,6 +93,25 @@ export class AiController {
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
   ) {
     return this.campaignStartFlow.run(session.user.id, journeyId);
+  }
+
+  @Post('journeys/:journeyId/structures')
+  structureProposals(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Body(new ZodValidationPipe(structureProposalsSchema))
+    dto: StructureProposalsDto,
+  ) {
+    return this.structureProposalsFlow.run(session.user.id, journeyId, dto);
+  }
+
+  @Post('journeys/:journeyId/population')
+  population(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
+  ) {
+    return this.populationFlow.run(session.user.id, journeyId, dto);
   }
 
   @Post('journeys/:journeyId/character-options')

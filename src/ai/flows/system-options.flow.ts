@@ -35,7 +35,7 @@ const MIN_THEMES = 1;
 const MAX_THEMES = 1;
 const STRUCTURES = 8;
 
-const STRUCTURE_ICONS = [
+export const STRUCTURE_ICONS = [
   'scroll-text',
   'package',
   'sparkles',

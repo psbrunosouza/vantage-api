@@ -11,7 +11,8 @@ import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
 import { memberResources } from '../members/members.schema.js';
 import { resources } from '../resources/resources.schema.js';
-import { ACTOR, structures } from '../structures/structures.schema.js';
+import { structures } from '../structures/structures.schema.js';
+import { hasActorsTag } from '../tags/actors.js';
 import type { ArrangeSessionTreeDto } from './dto/arrange-session-tree.dto.js';
 import type { CreatePlaySessionDto } from './dto/create-play-session.dto.js';
 import type { CreateSessionEntryDto } from './dto/create-session-entry.dto.js';
@@ -81,10 +82,11 @@ export class PlaySessionsService {
       )
       .returning();
 
-    if (!folder) throw new NotFoundException({
-      code: 'FOLDER_NOT_FOUND',
-      message: 'Folder not found.',
-    });
+    if (!folder)
+      throw new NotFoundException({
+        code: 'FOLDER_NOT_FOUND',
+        message: 'Folder not found.',
+      });
     return folder;
   }
 
@@ -113,10 +115,11 @@ export class PlaySessionsService {
         )
         .returning({ id: sessionFolders.id });
 
-      if (!folder) throw new NotFoundException({
-        code: 'FOLDER_NOT_FOUND',
-        message: 'Folder not found.',
-      });
+      if (!folder)
+        throw new NotFoundException({
+          code: 'FOLDER_NOT_FOUND',
+          message: 'Folder not found.',
+        });
     });
   }
 
@@ -166,10 +169,11 @@ export class PlaySessionsService {
       )
       .returning();
 
-    if (!session) throw new NotFoundException({
-      code: 'SESSION_NOT_FOUND',
-      message: 'Session not found.',
-    });
+    if (!session)
+      throw new NotFoundException({
+        code: 'SESSION_NOT_FOUND',
+        message: 'Session not found.',
+      });
     return session;
   }
 
@@ -186,10 +190,11 @@ export class PlaySessionsService {
       )
       .returning({ id: playSessions.id });
 
-    if (!session) throw new NotFoundException({
-      code: 'SESSION_NOT_FOUND',
-      message: 'Session not found.',
-    });
+    if (!session)
+      throw new NotFoundException({
+        code: 'SESSION_NOT_FOUND',
+        message: 'Session not found.',
+      });
   }
 
   async arrange(
@@ -303,7 +308,7 @@ export class PlaySessionsService {
     }
 
     const [sheet] = await this.db
-      .select({ name: resources.name, capability: structures.capability })
+      .select({ name: resources.name, isActor: hasActorsTag(structures.id) })
       .from(memberResources)
       .innerJoin(resources, eq(resources.id, memberResources.resourceId))
       .innerJoin(structures, eq(structures.id, resources.structureId))
@@ -315,7 +320,7 @@ export class PlaySessionsService {
         ),
       );
 
-    if (!sheet || sheet.capability !== ACTOR) {
+    if (!sheet || !sheet.isActor) {
       throw new ForbiddenException({
         code: 'SHEET_NOT_CONTROLLED',
         message: 'You can only speak as an actor sheet you control.',
@@ -360,10 +365,11 @@ export class PlaySessionsService {
         ),
       );
 
-    if (!session) throw new NotFoundException({
-      code: 'SESSION_NOT_FOUND',
-      message: 'Session not found.',
-    });
+    if (!session)
+      throw new NotFoundException({
+        code: 'SESSION_NOT_FOUND',
+        message: 'Session not found.',
+      });
   }
 
   private async ensureFolder(
@@ -380,10 +386,11 @@ export class PlaySessionsService {
         ),
       );
 
-    if (!folder) throw new NotFoundException({
-      code: 'FOLDER_NOT_FOUND',
-      message: 'Folder not found.',
-    });
+    if (!folder)
+      throw new NotFoundException({
+        code: 'FOLDER_NOT_FOUND',
+        message: 'Folder not found.',
+      });
   }
 
   private async folderTopPosition(folderId: string): Promise<number> {
@@ -394,7 +401,7 @@ export class PlaySessionsService {
     return top === null ? 0 : top - 1;
   }
 
-    private async treeOf(journeyId: string): Promise<SessionTree> {
+  private async treeOf(journeyId: string): Promise<SessionTree> {
     const [folders, sessions] = await Promise.all([
       this.db
         .select()

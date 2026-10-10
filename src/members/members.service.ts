@@ -13,7 +13,8 @@ import { DATABASE } from '../database/database.module.js';
 import { journeyMembers } from '../journeys/journeys.schema.js';
 import { JourneysService } from '../journeys/journeys.service.js';
 import { resources } from '../resources/resources.schema.js';
-import { ACTOR, structures } from '../structures/structures.schema.js';
+import { structures } from '../structures/structures.schema.js';
+import { hasActorsTag } from '../tags/actors.js';
 import type { SetMemberResourcesDto } from './dto/set-member-resources.dto.js';
 import { memberResources } from './members.schema.js';
 
@@ -80,7 +81,8 @@ export class MembersService {
     ) {
       throw new ForbiddenException({
         code: 'SHEETS_FORBIDDEN',
-        message: "Only the narrator or the owner can change another player's sheets.",
+        message:
+          "Only the narrator or the owner can change another player's sheets.",
       });
     }
 
@@ -97,14 +99,15 @@ export class MembersService {
           ),
         );
 
-      if (!member) throw new NotFoundException({
-        code: 'MEMBER_NOT_FOUND',
-        message: 'Member not found.',
-      });
+      if (!member)
+        throw new NotFoundException({
+          code: 'MEMBER_NOT_FOUND',
+          message: 'Member not found.',
+        });
 
       if (resourceIds.length > 0) {
         const found = await tx
-          .select({ id: resources.id, capability: structures.capability })
+          .select({ id: resources.id, isActor: hasActorsTag(structures.id) })
           .from(resources)
           .innerJoin(structures, eq(structures.id, resources.structureId))
           .where(
@@ -121,7 +124,7 @@ export class MembersService {
           });
         }
 
-        if (found.some((resource) => resource.capability !== ACTOR)) {
+        if (found.some((resource) => !resource.isActor)) {
           throw new BadRequestException({
             code: 'ACTOR_SHEETS_ONLY',
             message: 'Only actor sheets can be controlled.',
@@ -194,7 +197,8 @@ export class MembersService {
     if (!controlled) {
       throw new ForbiddenException({
         code: 'SHEET_EDIT_FORBIDDEN',
-        message: 'Only the owner or the player controlling this sheet can change it.',
+        message:
+          'Only the owner or the player controlling this sheet can change it.',
       });
     }
   }

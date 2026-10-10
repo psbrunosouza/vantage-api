@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { Campaign } from '../campaigns/campaigns.schema.js';
 import type { Journey } from '../journeys/journeys.schema.js';
 import type { StructureField } from '../structures/structure-field.js';
-import { ACTOR, type Structure } from '../structures/structures.schema.js';
+import type { StructureView } from '../structures/structure-view.js';
+import type { FieldTag } from '../tags/field-tags.schema.js';
 
 const relationSource = z.looseObject({
   chips: z.looseObject({
@@ -32,7 +33,10 @@ export function fillableFields(
   );
 }
 
-export function describeFields(fields: readonly StructureField[]): string {
+export function describeFields(
+  fields: readonly StructureField[],
+  fieldTags: readonly FieldTag[] = [],
+): string {
   const fillable = fillableFields(fields);
 
   if (fillable.length === 0) {
@@ -40,11 +44,19 @@ export function describeFields(fields: readonly StructureField[]): string {
   }
 
   return fillable
-    .map((field) =>
-      field.options.length > 0
-        ? `${field.label} (${TYPE_LABELS[field.type]}: ${field.options.join(', ')})`
-        : `${field.label} (${TYPE_LABELS[field.type]})`,
-    )
+    .map((field) => {
+      const kind =
+        field.options.length > 0
+          ? `${TYPE_LABELS[field.type]}: ${field.options.join(', ')}`
+          : TYPE_LABELS[field.type];
+      const meanings = (field.tagIds ?? []).flatMap((id) => {
+        const tag = fieldTags.find((candidate) => candidate.id === id);
+        return tag ? [`@${tag.slug}: ${tag.description}`] : [];
+      });
+      return meanings.length > 0
+        ? `${field.label} (${kind}; ${meanings.join('; ')})`
+        : `${field.label} (${kind})`;
+    })
     .join('; ');
 }
 
@@ -62,17 +74,25 @@ export function describeValues(
 
 export function describeJourney(
   journey: Journey,
-  structures: readonly Structure[],
+  structures: readonly StructureView[],
+  fieldTags: readonly FieldTag[] = [],
 ): string {
   return [
     `Journey: ${journey.name}`,
     `Description: ${journey.description ?? 'none'}`,
     `Main die: ${journey.mainDie ?? 'none'}`,
     'Structures:',
-    ...structures.map(
-      (structure) =>
-        `- ${structure.name}${structure.capability === ACTOR ? ' (player characters)' : ''}: ${describeFields(structure.fields)}`,
-    ),
+    ...structures.map((structure) => {
+      const tags = structure.tags.map(
+        (tag) => `@${tag.slug}: ${tag.description}`,
+      );
+      const header = [
+        structure.name,
+        ...(tags.length > 0 ? [`(${tags.join('; ')})`] : []),
+      ].join(' ');
+      const note = structure.aiNote ? ` Note: ${structure.aiNote}` : '';
+      return `- ${header}: ${describeFields(structure.fields, fieldTags)}.${note}`;
+    }),
   ].join('\n');
 }
 

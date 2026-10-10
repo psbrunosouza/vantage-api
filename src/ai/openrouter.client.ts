@@ -82,8 +82,7 @@ export interface ChatTool {
 }
 
 export type ToolChoice =
-  | 'none'
-  | { type: 'function'; function: { name: string } };
+  'none' | { type: 'function'; function: { name: string } };
 
 export interface ChatRequest {
   model: string;

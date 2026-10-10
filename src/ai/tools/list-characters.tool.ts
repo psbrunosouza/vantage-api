@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { MembersService } from '../../members/members.service.js';
 import type { ResourcesService } from '../../resources/resources.service.js';
-import { ACTOR } from '../../structures/structures.schema.js';
+import { isActorStructure } from '../../tags/actors.js';
 import type { StructuresService } from '../../structures/structures.service.js';
 import { type AiTool, aiTool } from '../ai-tool.js';
 
@@ -27,12 +27,12 @@ export function listCharactersTool(
         source.resources.findAll(userId, journeyId),
         source.members.findAll(userId, journeyId),
       ]);
-      const actors = structures.find(
-        (structure) => structure.capability === ACTOR,
+      const actorIds = new Set(
+        structures.filter(isActorStructure).map((structure) => structure.id),
       );
 
       return resources
-        .filter((resource) => resource.structureId === actors?.id)
+        .filter((resource) => actorIds.has(resource.structureId))
         .map((resource) => ({
           id: resource.id,
           name: resource.name,

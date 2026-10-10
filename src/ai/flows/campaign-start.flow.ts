@@ -9,6 +9,7 @@ import type {
 } from '../../play-sessions/play-sessions.schema.js';
 import { PlaySessionsService } from '../../play-sessions/play-sessions.service.js';
 import { StructuresService } from '../../structures/structures.service.js';
+import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { describeJourney } from '../journey-context.js';
@@ -51,6 +52,7 @@ export class CampaignStartFlow {
     private readonly aiService: AiService,
     private readonly journeysService: JourneysService,
     private readonly structuresService: StructuresService,
+    private readonly tagsService: TagsService,
     private readonly campaignsService: CampaignsService,
     private readonly playSessionsService: PlaySessionsService,
     private readonly runner: AgentRunner,
@@ -59,17 +61,21 @@ export class CampaignStartFlow {
   async run(userId: string, journeyId: string): Promise<CampaignStart> {
     await this.journeysService.ensureOwner(userId, journeyId);
 
-    const [credentials, journey, structures] = await Promise.all([
+    const [credentials, journey, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
       this.journeysService.findOne(userId, journeyId),
       this.structuresService.findAll(userId, journeyId),
+      this.tagsService.findFieldTags(userId, journeyId),
     ]);
 
     const draft = await this.runner.submit(
       credentials,
       [
         { role: 'system', content: PROMPT },
-        { role: 'user', content: describeJourney(journey, structures) },
+        {
+          role: 'user',
+          content: describeJourney(journey, structures, fieldTags),
+        },
       ],
       OUTPUT,
     );

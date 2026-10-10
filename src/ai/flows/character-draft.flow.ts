@@ -2,10 +2,17 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { JourneysService } from '../../journeys/journeys.service.js';
 import type { StructureField } from '../../structures/structure-field.js';
-import { ACTOR } from '../../structures/structures.schema.js';
+import { isActorStructure } from '../../tags/actors.js';
 import { StructuresService } from '../../structures/structures.service.js';
+import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { type AiCredentials, AiService } from '../ai.service.js';
+import {
+  keysOf,
+  progressSchema,
+  valuesById,
+  valuesSchemaOf,
+} from '../field-values.js';
 import { layoutFields } from '../field-layout.js';
 import {
   describeFields,
@@ -33,11 +40,10 @@ const DESIGN_PROMPT =
 const FILL_PROMPT = 'Fill every field of the sheet.';
 
 const label = z.string().min(1);
-const progress = z.object({ current: z.number(), max: z.number() });
 
 const designedField = z.discriminatedUnion('type', [
   z.object({ type: z.literal('number'), label, value: z.number() }),
-  z.object({ type: z.literal('progress'), label, value: progress }),
+  z.object({ type: z.literal('progress'), label, value: progressSchema }),
   z.object({ type: z.literal('short-text'), label, value: z.string() }),
   z.object({ type: z.literal('long-text'), label, value: z.string() }),
   z
@@ -68,6 +74,7 @@ export class CharacterDraftFlow {
     private readonly aiService: AiService,
     private readonly journeysService: JourneysService,
     private readonly structuresService: StructuresService,
+    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
@@ -78,25 +85,24 @@ export class CharacterDraftFlow {
   ): Promise<CharacterDraft> {
     await this.journeysService.ensureOwner(userId, journeyId);
 
-    const [credentials, journey, structures] = await Promise.all([
+    const [credentials, journey, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
       this.journeysService.findOne(userId, journeyId),
       this.structuresService.findAll(userId, journeyId),
+      this.tagsService.findFieldTags(userId, journeyId),
     ]);
 
-    const actors = structures.find(
-      (structure) => structure.capability === ACTOR,
-    );
+    const actors = structures.find(isActorStructure);
 
     if (!actors) {
       throw new BadRequestException({
         code: 'ACTORS_MISSING',
-        message: 'Mark a structure as Actors first.',
+        message: 'Tag a structure as Actors first.',
       });
     }
 
     const context = [
-      describeJourney(journey, structures),
+      describeJourney(journey, structures, fieldTags),
       `Player concept: ${concept || 'none, invent one'}`,
     ].join('\n\n');
     const fillable = fillableFields(actors.fields);
@@ -126,14 +132,7 @@ export class CharacterDraftFlow {
         description: 'Submits the character with a value for every field.',
         input: z.object({
           name: label,
-          values: z.object(
-            Object.fromEntries(
-              [...keyed].map(([key, field]) => [
-                key,
-                valueSchemaOf(field).describe(field.label),
-              ]),
-            ),
-          ),
+          values: valuesSchemaOf(keyed),
         }),
       },
     );
@@ -141,9 +140,7 @@ export class CharacterDraftFlow {
     return {
       name: result.name,
       fields: [],
-      values: Object.fromEntries(
-        [...keyed].map(([key, field]) => [field.id, result.values[key]]),
-      ),
+      values: valuesById(keyed, result.values),
     };
   }
 
@@ -177,50 +174,4 @@ export class CharacterDraftFlow {
       ),
     };
   }
-}
-
-function valueSchemaOf(field: StructureField): z.ZodType {
-  const option =
-    field.options.length > 0 ? z.enum(field.options) : z.string();
-
-  switch (field.type) {
-    case 'number':
-      return z.number();
-    case 'progress':
-      return progress;
-    case 'toggle':
-      return z.boolean();
-    case 'choice':
-      return option;
-    case 'boxes':
-      return z.array(option);
-    default:
-      return z.string();
-  }
-}
-
-function keysOf(fields: StructureField[]): Map<string, StructureField> {
-  const keyed = new Map<string, StructureField>();
-
-  for (const field of fields) {
-    const base = slugOf(field.label) || 'field';
-    let key = base;
-
-    for (let suffix = 2; keyed.has(key); suffix++) {
-      key = `${base}_${suffix}`;
-    }
-
-    keyed.set(key, field);
-  }
-
-  return keyed;
-}
-
-function slugOf(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
 }

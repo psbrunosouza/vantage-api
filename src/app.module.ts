@@ -18,6 +18,7 @@ import { PlaySessionsModule } from './play-sessions/play-sessions.module.js';
 import { ResourcesModule } from './resources/resources.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { StructuresModule } from './structures/structures.module.js';
+import { TagsModule } from './tags/tags.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 
 @Module({
@@ -38,6 +39,7 @@ import { TemplatesModule } from './templates/templates.module.js';
     AvatarModule,
     JourneysModule,
     StructuresModule,
+    TagsModule,
     ResourcesModule,
     LinksModule,
     PlaySessionsModule,

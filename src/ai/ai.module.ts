@@ -6,6 +6,7 @@ import { MembersModule } from '../members/members.module.js';
 import { PlaySessionsModule } from '../play-sessions/play-sessions.module.js';
 import { ResourcesModule } from '../resources/resources.module.js';
 import { StructuresModule } from '../structures/structures.module.js';
+import { TagsModule } from '../tags/tags.module.js';
 import { AgentRunner } from './agent-runner.js';
 import { AiKeyCipher } from './ai-key.cipher.js';
 import { AiController } from './ai.controller.js';
@@ -14,6 +15,8 @@ import { CampaignStartFlow } from './flows/campaign-start.flow.js';
 import { CharacterDraftFlow } from './flows/character-draft.flow.js';
 import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
+import { PopulationFlow } from './flows/population.flow.js';
+import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
 
@@ -21,6 +24,7 @@ import { OpenRouterClient } from './openrouter.client.js';
   imports: [
     JourneysModule,
     StructuresModule,
+    TagsModule,
     ResourcesModule,
     MembersModule,
     PlaySessionsModule,
@@ -38,6 +42,8 @@ import { OpenRouterClient } from './openrouter.client.js';
     CharacterOptionsFlow,
     CharacterDraftFlow,
     NarrationFlow,
+    StructureProposalsFlow,
+    PopulationFlow,
   ],
   exports: [AiService],
 })

@@ -1,16 +1,25 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { type SQL, and, asc, eq, inArray, ne } from 'drizzle-orm';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { JourneysService } from '../journeys/journeys.service.js';
 import { links } from '../links/links.schema.js';
 import { keyOf, relationTargets } from '../links/relation-columns.js';
-import { memberResources } from '../members/members.schema.js';
 import { resources } from '../resources/resources.schema.js';
 import type { CreateStructureDto } from './dto/create-structure.dto.js';
 import type { UpdateStructureDto } from './dto/update-structure.dto.js';
-import { ACTOR, type Structure, structures } from './structures.schema.js';
+import {
+  structureTagLinks,
+  structureTags,
+} from '../tags/structure-tags.schema.js';
+import type { StructureView } from './structure-view.js';
+import { type Structure, structures } from './structures.schema.js';
 
 type Transaction = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
 
@@ -21,32 +30,34 @@ export class StructuresService {
     private readonly journeysService: JourneysService,
   ) {}
 
-  async findAll(userId: string, journeyId: string): Promise<Structure[]> {
+  async findAll(userId: string, journeyId: string): Promise<StructureView[]> {
     await this.journeysService.ensureVisible(userId, journeyId);
-    return this.db
+    const rows = await this.db
       .select()
       .from(structures)
       .where(eq(structures.journeyId, journeyId))
       .orderBy(asc(structures.createdAt));
+    return this.withTags(this.db, rows);
   }
 
   async create(
     userId: string,
     journeyId: string,
     dto: CreateStructureDto,
-  ): Promise<Structure> {
+  ): Promise<StructureView> {
     await this.journeysService.ensureOwner(userId, journeyId);
+    const { tagIds, ...values } = dto;
 
     return this.db.transaction(async (tx) => {
-      if (dto.capability === ACTOR) {
-        await this.demote(tx, this.actorsOf(journeyId));
-      }
-
       const [structure] = await tx
         .insert(structures)
-        .values({ ...dto, journeyId })
+        .values({ ...values, journeyId })
         .returning();
-      return structure;
+
+      if (tagIds) await this.setTags(tx, journeyId, structure.id, tagIds);
+
+      const [view] = await this.withTags(tx, [structure]);
+      return view;
     });
   }
 
@@ -55,30 +66,27 @@ export class StructuresService {
     journeyId: string,
     id: string,
     dto: UpdateStructureDto,
-  ): Promise<Structure> {
+  ): Promise<StructureView> {
     await this.journeysService.ensureOwner(userId, journeyId);
+    const { tagIds, ...values } = dto;
 
     return this.db.transaction(async (tx) => {
-      if (dto.capability !== undefined) {
-        await this.demote(
-          tx,
-          dto.capability === ACTOR
-            ? and(this.actorsOf(journeyId), ne(structures.id, id))
-            : this.inJourney(journeyId, id),
-        );
-      }
-
       const [structure] = await tx
         .update(structures)
-        .set(dto)
+        .set({ ...values, updatedAt: new Date() })
         .where(this.inJourney(journeyId, id))
         .returning();
 
-      if (!structure) throw new NotFoundException({
-        code: 'STRUCTURE_NOT_FOUND',
-        message: 'Structure not found.',
-      });
-      return structure;
+      if (!structure)
+        throw new NotFoundException({
+          code: 'STRUCTURE_NOT_FOUND',
+          message: 'Structure not found.',
+        });
+
+      if (tagIds) await this.setTags(tx, journeyId, id, tagIds);
+
+      const [view] = await this.withTags(tx, [structure]);
+      return view;
     });
   }
 
@@ -91,10 +99,11 @@ export class StructuresService {
         .from(structures)
         .where(this.inJourney(journeyId, id));
 
-      if (!structure) throw new NotFoundException({
-        code: 'STRUCTURE_NOT_FOUND',
-        message: 'Structure not found.',
-      });
+      if (!structure)
+        throw new NotFoundException({
+          code: 'STRUCTURE_NOT_FOUND',
+          message: 'Structure not found.',
+        });
 
       const fieldIds = new Set(structure.fields.map((field) => field.id));
       const owned = await tx
@@ -155,42 +164,81 @@ export class StructuresService {
       .where(this.inJourney(journeyId, id))
       .returning({ id: structures.id });
 
-    if (!structure) throw new NotFoundException({
-      code: 'STRUCTURE_NOT_FOUND',
-      message: 'Structure not found.',
-    });
+    if (!structure)
+      throw new NotFoundException({
+        code: 'STRUCTURE_NOT_FOUND',
+        message: 'Structure not found.',
+      });
   }
 
-  private async demote(
-    tx: Transaction,
-    where: SQL | undefined,
-  ): Promise<void> {
-    const demoted = tx
-      .select({ id: structures.id })
-      .from(structures)
-      .where(where);
-    await tx
-      .delete(memberResources)
+  private async withTags(
+    db: Transaction | NodePgDatabase,
+    rows: Structure[],
+  ): Promise<StructureView[]> {
+    if (rows.length === 0) return [];
+
+    const linked = await db
+      .select({
+        structureId: structureTagLinks.structureId,
+        tag: structureTags,
+      })
+      .from(structureTagLinks)
+      .innerJoin(structureTags, eq(structureTags.id, structureTagLinks.tagId))
       .where(
         inArray(
-          memberResources.resourceId,
-          tx
-            .select({ id: resources.id })
-            .from(resources)
-            .where(inArray(resources.structureId, demoted)),
+          structureTagLinks.structureId,
+          rows.map((row) => row.id),
         ),
-      );
-    await tx
-      .update(structures)
-      .set({ capability: null })
-      .where(inArray(structures.id, demoted));
+      )
+      .orderBy(asc(structureTags.createdAt), asc(structureTags.name));
+
+    return rows.map((row) => ({
+      ...row,
+      tags: linked
+        .filter((link) => link.structureId === row.id)
+        .map((link) => link.tag),
+    }));
   }
 
-  private actorsOf(journeyId: string) {
-    return and(
-      eq(structures.journeyId, journeyId),
-      eq(structures.capability, ACTOR),
-    );
+  private async setTags(
+    tx: Transaction,
+    journeyId: string,
+    structureId: string,
+    tagIds: string[],
+  ): Promise<void> {
+    const unique = [...new Set(tagIds)];
+
+    if (unique.length > 0) {
+      const found = await tx
+        .select({ id: structureTags.id })
+        .from(structureTags)
+        .where(
+          and(
+            inArray(structureTags.id, unique),
+            or(
+              isNull(structureTags.journeyId),
+              eq(structureTags.journeyId, journeyId),
+            ),
+          ),
+        );
+
+      if (found.length !== unique.length) {
+        throw new BadRequestException({
+          code: 'TAG_NOT_FOUND',
+          message: 'Tag not found.',
+        });
+      }
+    }
+
+    await tx
+      .delete(structureTagLinks)
+      .where(eq(structureTagLinks.structureId, structureId));
+
+    if (unique.length > 0) {
+      await tx
+        .insert(structureTagLinks)
+        .values(unique.map((tagId) => ({ structureId, tagId })));
+    }
   }
 
   private inJourney(journeyId: string, id: string) {

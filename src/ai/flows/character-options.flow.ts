@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { JourneysService } from '../../journeys/journeys.service.js';
-import { ACTOR } from '../../structures/structures.schema.js';
+import { isActorStructure } from '../../tags/actors.js';
 import { StructuresService } from '../../structures/structures.service.js';
+import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { describeJourney } from '../journey-context.js';
@@ -36,22 +37,24 @@ export class CharacterOptionsFlow {
     private readonly aiService: AiService,
     private readonly journeysService: JourneysService,
     private readonly structuresService: StructuresService,
+    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
   async run(userId: string, journeyId: string): Promise<CharacterOption[]> {
     await this.journeysService.ensureOwner(userId, journeyId);
 
-    const [credentials, journey, structures] = await Promise.all([
+    const [credentials, journey, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
       this.journeysService.findOne(userId, journeyId),
       this.structuresService.findAll(userId, journeyId),
+      this.tagsService.findFieldTags(userId, journeyId),
     ]);
 
-    if (!structures.some((structure) => structure.capability === ACTOR)) {
+    if (!structures.some(isActorStructure)) {
       throw new BadRequestException({
         code: 'ACTORS_MISSING',
-        message: 'Mark a structure as Actors first.',
+        message: 'Tag a structure as Actors first.',
       });
     }
 
@@ -59,7 +62,10 @@ export class CharacterOptionsFlow {
       credentials,
       [
         { role: 'system', content: PROMPT },
-        { role: 'user', content: describeJourney(journey, structures) },
+        {
+          role: 'user',
+          content: describeJourney(journey, structures, fieldTags),
+        },
       ],
       OUTPUT,
     );

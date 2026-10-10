@@ -31,10 +31,11 @@ export class ImageStorageService {
     file: ImageFile | undefined,
     persist?: (url: string) => PromiseLike<unknown>,
   ): Promise<string> {
-    if (!file) throw new BadRequestException({
-      code: 'FILE_MISSING',
-      message: 'Missing file.',
-    });
+    if (!file)
+      throw new BadRequestException({
+        code: 'FILE_MISSING',
+        message: 'Missing file.',
+      });
 
     const extension = EXTENSIONS[file.mimetype];
     if (!extension) {

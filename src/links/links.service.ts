@@ -65,10 +65,11 @@ export class LinksService {
           and(eq(resources.id, sourceId), eq(structures.journeyId, journeyId)),
         );
 
-      if (!source) throw new NotFoundException({
-        code: 'RESOURCE_NOT_FOUND',
-        message: 'Resource not found.',
-      });
+      if (!source)
+        throw new NotFoundException({
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'Resource not found.',
+        });
 
       const field = source.fields.find((entry) => entry.id === dto.fieldId);
       const relation =
@@ -79,10 +80,11 @@ export class LinksService {
             : relationColumns(field).find((entry) => entry.id === dto.columnId)
                 ?.relation;
 
-      if (!relation) throw new NotFoundException({
-        code: 'RELATION_NOT_FOUND',
-        message: 'Relation not found.',
-      });
+      if (!relation)
+        throw new NotFoundException({
+          code: 'RELATION_NOT_FOUND',
+          message: 'Relation not found.',
+        });
 
       if (
         dto.rowId !== null &&
@@ -143,10 +145,11 @@ export class LinksService {
           )
           .limit(1);
 
-        if (taken) throw new ConflictException({
-          code: 'RELATION_TARGET_TAKEN',
-          message: 'Target already linked.',
-        });
+        if (taken)
+          throw new ConflictException({
+            code: 'RELATION_TARGET_TAKEN',
+            message: 'Target already linked.',
+          });
       }
 
       const cell = and(

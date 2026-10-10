@@ -18,10 +18,7 @@ export class InvitesController {
   }
 
   @Get('invites/:code')
-  preview(
-    @Session() session: UserSession<Auth>,
-    @Param('code') code: string,
-  ) {
+  preview(@Session() session: UserSession<Auth>, @Param('code') code: string) {
     return this.invitesService.preview(session.user.id, code);
   }
 

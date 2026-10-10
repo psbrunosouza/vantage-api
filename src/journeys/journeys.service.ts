@@ -12,11 +12,7 @@ import { DATABASE } from '../database/database.module.js';
 import type { ImageFile } from '../storage/image-storage.service.js';
 import type { CreateJourneyDto } from './dto/create-journey.dto.js';
 import type { UpdateJourneyDto } from './dto/update-journey.dto.js';
-import {
-  type Journey,
-  journeyMembers,
-  journeys,
-} from './journeys.schema.js';
+import { type Journey, journeyMembers, journeys } from './journeys.schema.js';
 import { pickMemberColor } from './member-colors.js';
 
 @Injectable()
@@ -38,7 +34,11 @@ export class JourneysService {
     return this.db.transaction(async (tx) => {
       const [journey] = await tx
         .insert(journeys)
-        .values({ ...dto, ownerId, narratorId: dto.aiNarrator ? null : ownerId })
+        .values({
+          ...dto,
+          ownerId,
+          narratorId: dto.aiNarrator ? null : ownerId,
+        })
         .returning();
       await tx.insert(journeyMembers).values({
         journeyId: journey.id,
@@ -126,10 +126,11 @@ export class JourneysService {
       .from(journeys)
       .where(and(eq(journeys.id, id), this.visibleTo(userId)));
 
-    if (!journey) throw new NotFoundException({
-      code: 'JOURNEY_NOT_FOUND',
-      message: 'Journey not found.',
-    });
+    if (!journey)
+      throw new NotFoundException({
+        code: 'JOURNEY_NOT_FOUND',
+        message: 'Journey not found.',
+      });
     return journey;
   }
 
@@ -142,10 +143,11 @@ export class JourneysService {
       .from(journeys)
       .where(and(eq(journeys.id, id), this.visibleTo(userId)));
 
-    if (!journey) throw new NotFoundException({
-      code: 'JOURNEY_NOT_FOUND',
-      message: 'Journey not found.',
-    });
+    if (!journey)
+      throw new NotFoundException({
+        code: 'JOURNEY_NOT_FOUND',
+        message: 'Journey not found.',
+      });
     return journey;
   }
 

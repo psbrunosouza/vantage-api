@@ -7,12 +7,14 @@ export const createStructureSchema = createInsertSchema(structures, {
   name: (schema) => schema.min(1),
   icon: (schema) => schema.min(1),
   fields: z.array(structureFieldSchema).optional(),
-}).pick({
-  name: true,
-  icon: true,
-  color: true,
-  fields: true,
-  capability: true,
-});
+})
+  .pick({
+    name: true,
+    icon: true,
+    color: true,
+    fields: true,
+    aiNote: true,
+  })
+  .extend({ tagIds: z.array(z.uuid()).optional() });
 
 export type CreateStructureDto = z.infer<typeof createStructureSchema>;

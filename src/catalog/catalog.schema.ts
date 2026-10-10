@@ -1,10 +1,4 @@
-import {
-  index,
-  integer,
-  pgTable,
-  primaryKey,
-  text,
-} from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
 
 export const catalogThemes = pgTable('catalog_themes', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),

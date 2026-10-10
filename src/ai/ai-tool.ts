@@ -22,11 +22,7 @@ export function aiTool<T>(
   };
 }
 
-export function chatToolOf({
-  name,
-  description,
-  input,
-}: AiFunction): ChatTool {
+export function chatToolOf({ name, description, input }: AiFunction): ChatTool {
   return {
     type: 'function',
     function: {
