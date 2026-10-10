@@ -42,38 +42,38 @@ import {
 import { PlaySessionsService } from './play-sessions.service.js';
 
 @ApiTags('play-sessions')
-@Controller('journeys/:journeyId')
+@Controller('systems/:systemId')
 export class PlaySessionsController {
   constructor(private readonly playSessionsService: PlaySessionsService) {}
 
   @Get('session-tree')
   findTree(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.playSessionsService.findTree(session.user.id, journeyId);
+    return this.playSessionsService.findTree(session.user.id, systemId);
   }
 
   @Put('session-tree')
   arrange(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(arrangeSessionTreeSchema))
     dto: ArrangeSessionTreeDto,
   ) {
-    return this.playSessionsService.arrange(session.user.id, journeyId, dto);
+    return this.playSessionsService.arrange(session.user.id, systemId, dto);
   }
 
   @Post('session-folders')
   createFolder(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(createSessionFolderSchema))
     dto: CreateSessionFolderDto,
   ) {
     return this.playSessionsService.createFolder(
       session.user.id,
-      journeyId,
+      systemId,
       dto,
     );
   }
@@ -81,14 +81,14 @@ export class PlaySessionsController {
   @Patch('session-folders/:id')
   updateFolder(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateSessionFolderSchema))
     dto: UpdateSessionFolderDto,
   ) {
     return this.playSessionsService.updateFolder(
       session.user.id,
-      journeyId,
+      systemId,
       id,
       dto,
     );
@@ -98,12 +98,12 @@ export class PlaySessionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removeFolder(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.playSessionsService.removeFolder(
       session.user.id,
-      journeyId,
+      systemId,
       id,
     );
   }
@@ -111,13 +111,13 @@ export class PlaySessionsController {
   @Post('play-sessions')
   createSession(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(createPlaySessionSchema))
     dto: CreatePlaySessionDto,
   ) {
     return this.playSessionsService.createSession(
       session.user.id,
-      journeyId,
+      systemId,
       dto,
     );
   }
@@ -125,14 +125,14 @@ export class PlaySessionsController {
   @Patch('play-sessions/:id')
   updateSession(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updatePlaySessionSchema))
     dto: UpdatePlaySessionDto,
   ) {
     return this.playSessionsService.updateSession(
       session.user.id,
-      journeyId,
+      systemId,
       id,
       dto,
     );
@@ -142,12 +142,12 @@ export class PlaySessionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   removeSession(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.playSessionsService.removeSession(
       session.user.id,
-      journeyId,
+      systemId,
       id,
     );
   }
@@ -155,12 +155,12 @@ export class PlaySessionsController {
   @Get('play-sessions/:sessionId/entries')
   findEntries(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ) {
     return this.playSessionsService.findEntries(
       session.user.id,
-      journeyId,
+      systemId,
       sessionId,
     );
   }
@@ -168,14 +168,14 @@ export class PlaySessionsController {
   @Post('play-sessions/:sessionId/entries')
   createEntry(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
     @Body(new ZodValidationPipe(createSessionEntrySchema))
     dto: CreateSessionEntryDto,
   ) {
     return this.playSessionsService.createEntry(
       session.user.id,
-      journeyId,
+      systemId,
       sessionId,
       dto,
     );

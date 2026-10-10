@@ -19,7 +19,7 @@ Não assume sistema pronto. Campos, atributos, entidades e regras são definidos
 
 ## Conceitos
 
-- **Journey** — sistema de regras, entidades e campos definidos pelo usuário. Tem dono e participantes.
+- **System** — sistema de regras, entidades e campos definidos pelo usuário. Tem dono e participantes.
 - **Mesa** — jogo ao vivo com participantes e histórico.
 - **Cena** — contexto atual da mesa.
 - **Ficha** — entidade dinâmica para PC ou NPC.

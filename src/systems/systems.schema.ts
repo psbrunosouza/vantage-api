@@ -9,8 +9,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from '../auth/auth.schema.js';
 
-export const journeys = pgTable(
-  'journeys',
+export const systems = pgTable(
+  'systems',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     ownerId: uuid('owner_id')
@@ -39,12 +39,12 @@ export const journeys = pgTable(
   (table) => [index().on(table.ownerId)],
 );
 
-export const journeyMembers = pgTable(
-  'journey_members',
+export const systemMembers = pgTable(
+  'system_members',
   {
-    journeyId: uuid('journey_id')
+    systemId: uuid('system_id')
       .notNull()
-      .references(() => journeys.id, { onDelete: 'cascade' }),
+      .references(() => systems.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -54,9 +54,9 @@ export const journeyMembers = pgTable(
       .defaultNow(),
   },
   (table) => [
-    primaryKey({ columns: [table.journeyId, table.userId] }),
+    primaryKey({ columns: [table.systemId, table.userId] }),
     index().on(table.userId),
   ],
 );
 
-export type Journey = typeof journeys.$inferSelect;
+export type System = typeof systems.$inferSelect;

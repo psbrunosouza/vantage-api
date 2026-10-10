@@ -10,8 +10,8 @@ import { and, asc, eq, inArray, ne } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { users } from '../auth/auth.schema.js';
 import { DATABASE } from '../database/database.module.js';
-import { journeyMembers } from '../journeys/journeys.schema.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { systemMembers } from '../systems/systems.schema.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { resources } from '../resources/resources.schema.js';
 import { structures } from '../structures/structures.schema.js';
 import { hasActorsTag } from '../tags/actors.js';
@@ -30,31 +30,31 @@ export interface Member {
 export class MembersService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
-  async findAll(userId: string, journeyId: string): Promise<Member[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+  async findAll(userId: string, systemId: string): Promise<Member[]> {
+    await this.systemsService.ensureVisible(userId, systemId);
 
     const [members, controlled] = await Promise.all([
       this.db
         .select({
-          userId: journeyMembers.userId,
+          userId: systemMembers.userId,
           name: users.name,
           image: users.image,
-          color: journeyMembers.color,
+          color: systemMembers.color,
         })
-        .from(journeyMembers)
-        .innerJoin(users, eq(users.id, journeyMembers.userId))
-        .where(eq(journeyMembers.journeyId, journeyId))
-        .orderBy(asc(journeyMembers.createdAt)),
+        .from(systemMembers)
+        .innerJoin(users, eq(users.id, systemMembers.userId))
+        .where(eq(systemMembers.systemId, systemId))
+        .orderBy(asc(systemMembers.createdAt)),
       this.db
         .select({
           userId: memberResources.userId,
           resourceId: memberResources.resourceId,
         })
         .from(memberResources)
-        .where(eq(memberResources.journeyId, journeyId))
+        .where(eq(memberResources.systemId, systemId))
         .orderBy(asc(memberResources.createdAt)),
     ]);
 
@@ -68,16 +68,16 @@ export class MembersService {
 
   async setResources(
     userId: string,
-    journeyId: string,
+    systemId: string,
     memberId: string,
     dto: SetMemberResourcesDto,
   ): Promise<{ resourceIds: string[] }> {
-    const journey = await this.journeysService.ensureVisible(userId, journeyId);
+    const system = await this.systemsService.ensureVisible(userId, systemId);
 
     if (
       userId !== memberId &&
-      userId !== journey.ownerId &&
-      userId !== journey.narratorId
+      userId !== system.ownerId &&
+      userId !== system.narratorId
     ) {
       throw new ForbiddenException({
         code: 'SHEETS_FORBIDDEN',
@@ -90,12 +90,12 @@ export class MembersService {
 
     await this.db.transaction(async (tx) => {
       const [member] = await tx
-        .select({ userId: journeyMembers.userId })
-        .from(journeyMembers)
+        .select({ userId: systemMembers.userId })
+        .from(systemMembers)
         .where(
           and(
-            eq(journeyMembers.journeyId, journeyId),
-            eq(journeyMembers.userId, memberId),
+            eq(systemMembers.systemId, systemId),
+            eq(systemMembers.userId, memberId),
           ),
         );
 
@@ -112,7 +112,7 @@ export class MembersService {
           .innerJoin(structures, eq(structures.id, resources.structureId))
           .where(
             and(
-              eq(structures.journeyId, journeyId),
+              eq(structures.systemId, systemId),
               inArray(resources.id, resourceIds),
             ),
           );
@@ -153,7 +153,7 @@ export class MembersService {
         .delete(memberResources)
         .where(
           and(
-            eq(memberResources.journeyId, journeyId),
+            eq(memberResources.systemId, systemId),
             eq(memberResources.userId, memberId),
           ),
         );
@@ -162,7 +162,7 @@ export class MembersService {
         await tx.insert(memberResources).values(
           resourceIds.map((resourceId) => ({
             resourceId,
-            journeyId,
+            systemId,
             userId: memberId,
           })),
         );
@@ -174,12 +174,12 @@ export class MembersService {
 
   async ensureEditor(
     userId: string,
-    journeyId: string,
+    systemId: string,
     resourceId: string,
   ): Promise<void> {
-    const journey = await this.journeysService.ensureVisible(userId, journeyId);
+    const system = await this.systemsService.ensureVisible(userId, systemId);
 
-    if (journey.ownerId === userId) {
+    if (system.ownerId === userId) {
       return;
     }
 
@@ -189,7 +189,7 @@ export class MembersService {
       .where(
         and(
           eq(memberResources.resourceId, resourceId),
-          eq(memberResources.journeyId, journeyId),
+          eq(memberResources.systemId, systemId),
           eq(memberResources.userId, userId),
         ),
       );

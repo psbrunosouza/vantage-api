@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CampaignsModule } from '../campaigns/campaigns.module.js';
 import { CatalogModule } from '../catalog/catalog.module.js';
-import { JourneysModule } from '../journeys/journeys.module.js';
+import { SystemsModule } from '../systems/systems.module.js';
 import { MembersModule } from '../members/members.module.js';
 import { PlaySessionsModule } from '../play-sessions/play-sessions.module.js';
 import { ResourcesModule } from '../resources/resources.module.js';
@@ -19,14 +19,14 @@ import { NarrationFlow } from './flows/narration.flow.js';
 import { PopulationFlow } from './flows/population.flow.js';
 import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
-import { SystemOptionsFlow } from './flows/system-options.flow.js';
+import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
 import { SystemWorldsFlow } from './flows/system-worlds.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
 import { WorldSources } from './world-source.js';
 
 @Module({
   imports: [
-    JourneysModule,
+    SystemsModule,
     StructuresModule,
     TagsModule,
     ResourcesModule,
@@ -42,7 +42,7 @@ import { WorldSources } from './world-source.js';
     AiKeyCipher,
     OpenRouterClient,
     AgentRunner,
-    SystemOptionsFlow,
+    CampaignOptionsFlow,
     CampaignStartFlow,
     CharacterOptionsFlow,
     CharacterDraftFlow,

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Campaign } from '../../campaigns/campaigns.schema.js';
 import { CampaignsService } from '../../campaigns/campaigns.service.js';
 import { createCampaignSchema } from '../../campaigns/dto/create-campaign.dto.js';
-import { JourneysService } from '../../journeys/journeys.service.js';
+import { SystemsService } from '../../systems/systems.service.js';
 import type {
   PlaySession,
   SessionEntry,
@@ -12,11 +12,11 @@ import { StructuresService } from '../../structures/structures.service.js';
 import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
-import { describeJourney } from '../journey-context.js';
+import { describeSystem } from '../system-context.js';
 
 const PROMPT = [
   'You write the campaign that starts a solo tabletop RPG played in Vantage.',
-  'The campaign is one adventure set in a small part of the world of the journey, around the place where the story begins.',
+  'The campaign is one adventure set in a small part of the world of the system, around the place where the story begins.',
   'It does not need to face the main villain or the greater conflict of the world. The world has problems of every size.',
   'The title is the name of the adventure: short, catchy and specific, something players would say out loud at the table. No vague poetic titles.',
   'Make it exciting: a strong hook, stakes that matter to the people there, a mystery or a twist, and clear things to do like explore, investigate, negotiate, fight or escape.',
@@ -25,13 +25,13 @@ const PROMPT = [
   'Give the campaign a local theme and one central problem that drives the whole campaign.',
   'The central problem can escalate and comes with two or three related problems.',
   'Describe the place, its culture and people, its politics, and two to four NPCs with strong personalities, each with a role and a short description that makes them memorable.',
-  'The hook is an intriguing event happening right now that connects the local story to the theme of the journey.',
+  'The hook is an intriguing event happening right now that connects the local story to the theme of the system.',
   'The premise is a one or two sentence pitch: what is happening, why it is urgent and what makes it intriguing.',
   'The opening reads like the first page of a book chapter: two or three short paragraphs that show the surroundings and the event in motion, clear and without exaggeration.',
   'The tone is two or three adjectives separated by commas.',
   'Never mention the player character.',
   'Be creative but believable inside the world.',
-  'Write in the language of the journey.',
+  'Write in the language of the system.',
 ].join('\n');
 
 const OUTPUT = {
@@ -50,7 +50,7 @@ export interface CampaignStart {
 export class CampaignStartFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
     private readonly structuresService: StructuresService,
     private readonly tagsService: TagsService,
     private readonly campaignsService: CampaignsService,
@@ -58,14 +58,14 @@ export class CampaignStartFlow {
     private readonly runner: AgentRunner,
   ) {}
 
-  async run(userId: string, journeyId: string): Promise<CampaignStart> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+  async run(userId: string, systemId: string): Promise<CampaignStart> {
+    await this.systemsService.ensureOwner(userId, systemId);
 
-    const [credentials, journey, structures, fieldTags] = await Promise.all([
+    const [credentials, system, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
-      this.journeysService.findOne(userId, journeyId),
-      this.structuresService.findAll(userId, journeyId),
-      this.tagsService.findFieldTags(userId, journeyId),
+      this.systemsService.findOne(userId, systemId),
+      this.structuresService.findAll(userId, systemId),
+      this.tagsService.findFieldTags(userId, systemId),
     ]);
 
     const draft = await this.runner.submit(
@@ -74,7 +74,7 @@ export class CampaignStartFlow {
         { role: 'system', content: PROMPT },
         {
           role: 'user',
-          content: describeJourney(journey, structures, fieldTags),
+          content: describeSystem(system, structures, fieldTags),
         },
       ],
       OUTPUT,
@@ -82,17 +82,17 @@ export class CampaignStartFlow {
 
     const campaign = await this.campaignsService.replace(
       userId,
-      journeyId,
+      systemId,
       draft,
     );
     const folder = await this.playSessionsService.createFolder(
       userId,
-      journeyId,
+      systemId,
       { name: campaign.title },
     );
     const session = await this.playSessionsService.createSession(
       userId,
-      journeyId,
+      systemId,
       { folderId: folder.id },
     );
     const opening = await this.playSessionsService.createAiNarration(

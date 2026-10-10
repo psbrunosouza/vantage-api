@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CampaignsService } from '../../campaigns/campaigns.service.js';
-import { JourneysService } from '../../journeys/journeys.service.js';
+import { SystemsService } from '../../systems/systems.service.js';
 import { MembersService } from '../../members/members.service.js';
 import type { SessionEntry } from '../../play-sessions/play-sessions.schema.js';
 import { PlaySessionsService } from '../../play-sessions/play-sessions.service.js';
@@ -8,7 +8,7 @@ import { ResourcesService } from '../../resources/resources.service.js';
 import { StructuresService } from '../../structures/structures.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
-import { describeCampaign } from '../journey-context.js';
+import { describeCampaign } from '../system-context.js';
 import type { ChatMessage } from '../openrouter.client.js';
 import { listCharactersTool } from '../tools/list-characters.tool.js';
 import { readSheetTool } from '../tools/read-sheet.tool.js';
@@ -35,7 +35,7 @@ const CONTINUE = 'Continue the scene.';
 export class NarrationFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
     private readonly campaignsService: CampaignsService,
     private readonly playSessionsService: PlaySessionsService,
     private readonly structuresService: StructuresService,
@@ -46,22 +46,22 @@ export class NarrationFlow {
 
   async run(
     userId: string,
-    journeyId: string,
+    systemId: string,
     sessionId: string,
   ): Promise<SessionEntry> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
-    const [credentials, journey, campaign, entries] = await Promise.all([
+    const [credentials, system, campaign, entries] = await Promise.all([
       this.aiService.credentialsOf(userId),
-      this.journeysService.findOne(userId, journeyId),
-      this.campaignsService.find(userId, journeyId),
-      this.playSessionsService.findEntries(userId, journeyId, sessionId),
+      this.systemsService.findOne(userId, systemId),
+      this.campaignsService.find(userId, systemId),
+      this.playSessionsService.findEntries(userId, systemId, sessionId),
     ]);
 
-    if (!journey.aiNarrator) {
+    if (!system.aiNarrator) {
       throw new BadRequestException({
         code: 'AI_NOT_NARRATOR',
-        message: "The AI doesn't narrate this journey.",
+        message: "The AI doesn't narrate this system.",
       });
     }
 
@@ -79,7 +79,7 @@ export class NarrationFlow {
         role: 'system',
         content: [
           PROMPT,
-          `Journey: ${journey.name}. ${journey.description ?? ''}`,
+          `System: ${system.name}. ${system.description ?? ''}`,
           describeCampaign(campaign),
         ].join('\n\n'),
       },
@@ -98,8 +98,8 @@ export class NarrationFlow {
       members: this.membersService,
     };
     const text = await this.runner.reply(credentials, messages, [
-      listCharactersTool(source, userId, journeyId),
-      readSheetTool(source, userId, journeyId),
+      listCharactersTool(source, userId, systemId),
+      readSheetTool(source, userId, systemId),
     ]);
 
     return this.playSessionsService.createAiNarration(sessionId, text);

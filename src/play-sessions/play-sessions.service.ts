@@ -8,7 +8,7 @@ import {
 import { and, asc, count, eq, isNull, min } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { memberResources } from '../members/members.schema.js';
 import { resources } from '../resources/resources.schema.js';
 import { structures } from '../structures/structures.schema.js';
@@ -42,26 +42,26 @@ interface Placement {
 export class PlaySessionsService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
-  async findTree(userId: string, journeyId: string): Promise<SessionTree> {
-    await this.journeysService.ensureVisible(userId, journeyId);
-    return this.treeOf(journeyId);
+  async findTree(userId: string, systemId: string): Promise<SessionTree> {
+    await this.systemsService.ensureVisible(userId, systemId);
+    return this.treeOf(systemId);
   }
 
   async createFolder(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateSessionFolderDto,
   ): Promise<SessionFolder> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const [folder] = await this.db
       .insert(sessionFolders)
       .values({
         ...dto,
-        journeyId,
-        position: await this.topPosition(journeyId),
+        systemId,
+        position: await this.topPosition(systemId),
       })
       .returning();
     return folder;
@@ -69,16 +69,16 @@ export class PlaySessionsService {
 
   async updateFolder(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
     dto: UpdateSessionFolderDto,
   ): Promise<SessionFolder> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const [folder] = await this.db
       .update(sessionFolders)
       .set(dto)
       .where(
-        and(eq(sessionFolders.journeyId, journeyId), eq(sessionFolders.id, id)),
+        and(eq(sessionFolders.systemId, systemId), eq(sessionFolders.id, id)),
       )
       .returning();
 
@@ -92,16 +92,16 @@ export class PlaySessionsService {
 
   async removeFolder(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
   ): Promise<void> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     await this.db.transaction(async (tx) => {
       await tx
         .delete(playSessions)
         .where(
           and(
-            eq(playSessions.journeyId, journeyId),
+            eq(playSessions.systemId, systemId),
             eq(playSessions.folderId, id),
           ),
         );
@@ -109,7 +109,7 @@ export class PlaySessionsService {
         .delete(sessionFolders)
         .where(
           and(
-            eq(sessionFolders.journeyId, journeyId),
+            eq(sessionFolders.systemId, systemId),
             eq(sessionFolders.id, id),
           ),
         )
@@ -125,29 +125,29 @@ export class PlaySessionsService {
 
   async createSession(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreatePlaySessionDto,
   ): Promise<PlaySession> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const folderId = dto.folderId ?? null;
 
     if (folderId !== null) {
-      await this.ensureFolder(journeyId, folderId);
+      await this.ensureFolder(systemId, folderId);
     }
 
     const [{ total }] = await this.db
       .select({ total: count() })
       .from(playSessions)
-      .where(eq(playSessions.journeyId, journeyId));
+      .where(eq(playSessions.systemId, systemId));
     const [session] = await this.db
       .insert(playSessions)
       .values({
-        journeyId,
+        systemId,
         folderId,
         title: `Session ${total + 1}`,
         position:
           folderId === null
-            ? await this.topPosition(journeyId)
+            ? await this.topPosition(systemId)
             : await this.folderTopPosition(folderId),
       })
       .returning();
@@ -156,16 +156,16 @@ export class PlaySessionsService {
 
   async updateSession(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
     dto: UpdatePlaySessionDto,
   ): Promise<PlaySession> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const [session] = await this.db
       .update(playSessions)
       .set(dto)
       .where(
-        and(eq(playSessions.journeyId, journeyId), eq(playSessions.id, id)),
+        and(eq(playSessions.systemId, systemId), eq(playSessions.id, id)),
       )
       .returning();
 
@@ -179,14 +179,14 @@ export class PlaySessionsService {
 
   async removeSession(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
   ): Promise<void> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const [session] = await this.db
       .delete(playSessions)
       .where(
-        and(eq(playSessions.journeyId, journeyId), eq(playSessions.id, id)),
+        and(eq(playSessions.systemId, systemId), eq(playSessions.id, id)),
       )
       .returning({ id: playSessions.id });
 
@@ -199,11 +199,11 @@ export class PlaySessionsService {
 
   async arrange(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: ArrangeSessionTreeDto,
   ): Promise<SessionTree> {
-    await this.journeysService.ensureOwner(userId, journeyId);
-    const current = await this.treeOf(journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
+    const current = await this.treeOf(systemId);
 
     const folderPositions = new Map<string, number>();
     const placements = new Map<string, Placement>();
@@ -266,16 +266,16 @@ export class PlaySessionsService {
       }
     });
 
-    return this.treeOf(journeyId);
+    return this.treeOf(systemId);
   }
 
   async findEntries(
     userId: string,
-    journeyId: string,
+    systemId: string,
     sessionId: string,
   ): Promise<SessionEntry[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
-    await this.ensureSession(journeyId, sessionId);
+    await this.systemsService.ensureVisible(userId, systemId);
+    await this.ensureSession(systemId, sessionId);
     return this.db
       .select()
       .from(sessionEntries)
@@ -285,15 +285,15 @@ export class PlaySessionsService {
 
   async createEntry(
     userId: string,
-    journeyId: string,
+    systemId: string,
     sessionId: string,
     dto: CreateSessionEntryDto,
   ): Promise<SessionEntry> {
-    const journey = await this.journeysService.ensureVisible(userId, journeyId);
-    await this.ensureSession(journeyId, sessionId);
+    const system = await this.systemsService.ensureVisible(userId, systemId);
+    await this.ensureSession(systemId, sessionId);
 
     if (dto.kind === 'narrator') {
-      if (journey.narratorId !== userId) {
+      if (system.narratorId !== userId) {
         throw new ForbiddenException({
           code: 'NARRATOR_ONLY',
           message: 'Only the narrator can narrate.',
@@ -315,7 +315,7 @@ export class PlaySessionsService {
       .where(
         and(
           eq(memberResources.resourceId, dto.resourceId),
-          eq(memberResources.journeyId, journeyId),
+          eq(memberResources.systemId, systemId),
           eq(memberResources.userId, userId),
         ),
       );
@@ -352,7 +352,7 @@ export class PlaySessionsService {
   }
 
   private async ensureSession(
-    journeyId: string,
+    systemId: string,
     sessionId: string,
   ): Promise<void> {
     const [session] = await this.db
@@ -360,7 +360,7 @@ export class PlaySessionsService {
       .from(playSessions)
       .where(
         and(
-          eq(playSessions.journeyId, journeyId),
+          eq(playSessions.systemId, systemId),
           eq(playSessions.id, sessionId),
         ),
       );
@@ -373,7 +373,7 @@ export class PlaySessionsService {
   }
 
   private async ensureFolder(
-    journeyId: string,
+    systemId: string,
     folderId: string,
   ): Promise<void> {
     const [folder] = await this.db
@@ -381,7 +381,7 @@ export class PlaySessionsService {
       .from(sessionFolders)
       .where(
         and(
-          eq(sessionFolders.journeyId, journeyId),
+          eq(sessionFolders.systemId, systemId),
           eq(sessionFolders.id, folderId),
         ),
       );
@@ -401,34 +401,34 @@ export class PlaySessionsService {
     return top === null ? 0 : top - 1;
   }
 
-  private async treeOf(journeyId: string): Promise<SessionTree> {
+  private async treeOf(systemId: string): Promise<SessionTree> {
     const [folders, sessions] = await Promise.all([
       this.db
         .select()
         .from(sessionFolders)
-        .where(eq(sessionFolders.journeyId, journeyId))
+        .where(eq(sessionFolders.systemId, systemId))
         .orderBy(asc(sessionFolders.position), asc(sessionFolders.createdAt)),
       this.db
         .select()
         .from(playSessions)
-        .where(eq(playSessions.journeyId, journeyId))
+        .where(eq(playSessions.systemId, systemId))
         .orderBy(asc(playSessions.position), asc(playSessions.createdAt)),
     ]);
     return { folders, sessions };
   }
 
-  private async topPosition(journeyId: string): Promise<number> {
+  private async topPosition(systemId: string): Promise<number> {
     const [[folders], [sessions]] = await Promise.all([
       this.db
         .select({ top: min(sessionFolders.position) })
         .from(sessionFolders)
-        .where(eq(sessionFolders.journeyId, journeyId)),
+        .where(eq(sessionFolders.systemId, systemId)),
       this.db
         .select({ top: min(playSessions.position) })
         .from(playSessions)
         .where(
           and(
-            eq(playSessions.journeyId, journeyId),
+            eq(playSessions.systemId, systemId),
             isNull(playSessions.folderId),
           ),
         ),

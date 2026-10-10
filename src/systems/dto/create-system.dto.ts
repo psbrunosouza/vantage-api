@@ -1,8 +1,8 @@
 import { createInsertSchema } from 'drizzle-zod';
 import type { z } from 'zod';
-import { journeys } from '../journeys.schema.js';
+import { systems } from '../systems.schema.js';
 
-export const createJourneySchema = createInsertSchema(journeys, {
+export const createSystemSchema = createInsertSchema(systems, {
   name: (schema) => schema.min(1),
   initials: (schema) => schema.min(1),
 }).pick({
@@ -15,4 +15,4 @@ export const createJourneySchema = createInsertSchema(journeys, {
   aiNarrator: true,
 });
 
-export type CreateJourneyDto = z.infer<typeof createJourneySchema>;
+export type CreateSystemDto = z.infer<typeof createSystemSchema>;

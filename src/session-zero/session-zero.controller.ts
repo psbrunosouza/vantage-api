@@ -10,25 +10,25 @@ import {
 import { SessionZeroService } from './session-zero.service.js';
 
 @ApiTags('session-zero')
-@Controller('journeys/:journeyId/session-zero')
+@Controller('systems/:systemId/session-zero')
 export class SessionZeroController {
   constructor(private readonly sessionZeroService: SessionZeroService) {}
 
   @Get('questions')
   findAll(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.sessionZeroService.findAll(session.user.id, journeyId);
+    return this.sessionZeroService.findAll(session.user.id, systemId);
   }
 
   @Put('questions')
   replace(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(replaceQuestionsSchema))
     dto: ReplaceQuestionsDto,
   ) {
-    return this.sessionZeroService.replace(session.user.id, journeyId, dto);
+    return this.sessionZeroService.replace(session.user.id, systemId, dto);
   }
 }

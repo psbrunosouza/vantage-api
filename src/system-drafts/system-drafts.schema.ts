@@ -7,7 +7,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../auth/auth.schema.js';
-import { journeys } from '../journeys/journeys.schema.js';
+import { systems } from '../systems/systems.schema.js';
 import type {
   DraftCharacter,
   DraftHook,
@@ -32,7 +32,7 @@ export const systemDrafts = pgTable(
     status: text('status', { enum: SYSTEM_DRAFT_STATUSES })
       .notNull()
       .default('incomplete'),
-    systemId: uuid('system_id').references(() => journeys.id, {
+    systemId: uuid('system_id').references(() => systems.id, {
       onDelete: 'set null',
     }),
     progress: jsonb('progress')

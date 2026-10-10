@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { systemOptionSchema } from '../../ai/flows/system-options.flow.js';
-import { createJourneySchema } from '../../journeys/dto/create-journey.dto.js';
+import { campaignOptionSchema } from '../../ai/flows/campaign-options.flow.js';
+import { createSystemSchema } from '../../systems/dto/create-system.dto.js';
 import { createCharacterSchema } from '../../resources/dto/create-character.dto.js';
 import { sessionZeroQuestionSchema } from '../../session-zero/dto/replace-questions.dto.js';
 import { createStructureSchema } from '../../structures/dto/create-structure.dto.js';
 import { createTagSchema } from '../../tags/dto/create-tag.dto.js';
 
-export const draftSystemSchema = createJourneySchema.partial();
+export const draftSystemSchema = createSystemSchema.partial();
 
 export const draftTagSchema = createTagSchema.extend({ id: z.uuid() });
 
@@ -34,7 +34,7 @@ export const draftWorldSchema = z.object({
 });
 
 export const draftOptionSchema = z.object({
-  option: systemOptionSchema,
+  option: campaignOptionSchema,
   world: draftWorldSchema.nullable().default(null),
 });
 

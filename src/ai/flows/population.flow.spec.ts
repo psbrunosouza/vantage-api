@@ -3,8 +3,8 @@ import type { StructureView } from '../../structures/structure-view.js';
 import type { StructureTag } from '../../tags/structure-tags.schema.js';
 import { populationTargets, replacements } from './population.flow.js';
 
-const ACTORS = { journeyId: null, slug: 'atores' } as StructureTag;
-const PLACES = { journeyId: null, slug: 'locais' } as StructureTag;
+const ACTORS = { systemId: null, slug: 'atores' } as StructureTag;
+const PLACES = { systemId: null, slug: 'locais' } as StructureTag;
 
 function structure(id: string, tags: StructureTag[]): StructureView {
   return { id, tags } as unknown as StructureView;

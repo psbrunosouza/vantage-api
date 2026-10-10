@@ -29,28 +29,28 @@ import {
 import { ResourcesService } from './resources.service.js';
 
 @ApiTags('resources')
-@Controller('journeys/:journeyId')
+@Controller('systems/:systemId')
 export class ResourcesController {
   constructor(private readonly resourcesService: ResourcesService) {}
 
   @Get('resources')
   findAll(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.resourcesService.findAll(session.user.id, journeyId);
+    return this.resourcesService.findAll(session.user.id, systemId);
   }
 
   @Post('structures/:structureId/resources')
   create(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('structureId', ParseUUIDPipe) structureId: string,
     @Body(new ZodValidationPipe(createResourceSchema)) dto: CreateResourceDto,
   ) {
     return this.resourcesService.create(
       session.user.id,
-      journeyId,
+      systemId,
       structureId,
       dto,
     );
@@ -59,13 +59,13 @@ export class ResourcesController {
   @Post('characters')
   createCharacter(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(createCharacterSchema))
     dto: CreateCharacterDto,
   ) {
     return this.resourcesService.createCharacter(
       session.user.id,
-      journeyId,
+      systemId,
       dto,
     );
   }
@@ -73,25 +73,25 @@ export class ResourcesController {
   @Patch('resources/:id')
   update(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateResourceSchema)) dto: UpdateResourceDto,
   ) {
-    return this.resourcesService.update(session.user.id, journeyId, id, dto);
+    return this.resourcesService.update(session.user.id, systemId, id, dto);
   }
 
   @Post('resources/:id/fields/:fieldId/image')
   @ImageUpload()
   uploadImage(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Param('fieldId') fieldId: string,
     @UploadedFile() file: ImageFile | undefined,
   ) {
     return this.resourcesService.uploadImage(
       session.user.id,
-      journeyId,
+      systemId,
       id,
       fieldId,
       file,

@@ -11,7 +11,7 @@ import { type Env, envSchema } from './env.js';
 import { FieldsModule } from './fields/fields.module.js';
 import { HealthModule } from './health/health.module.js';
 import { InvitesModule } from './invites/invites.module.js';
-import { JourneysModule } from './journeys/journeys.module.js';
+import { SystemsModule } from './systems/systems.module.js';
 import { LinksModule } from './links/links.module.js';
 import { MembersModule } from './members/members.module.js';
 import { PlaySessionsModule } from './play-sessions/play-sessions.module.js';
@@ -39,7 +39,7 @@ import { TemplatesModule } from './templates/templates.module.js';
     }),
     HealthModule,
     AvatarModule,
-    JourneysModule,
+    SystemsModule,
     StructuresModule,
     TagsModule,
     SessionZeroModule,

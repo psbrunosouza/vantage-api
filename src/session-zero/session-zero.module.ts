@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { JourneysModule } from '../journeys/journeys.module.js';
+import { SystemsModule } from '../systems/systems.module.js';
 import { SessionZeroController } from './session-zero.controller.js';
 import { SessionZeroService } from './session-zero.service.js';
 
 @Module({
-  imports: [JourneysModule],
+  imports: [SystemsModule],
   controllers: [SessionZeroController],
   providers: [SessionZeroService],
   exports: [SessionZeroService],

@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { structures } from '../structures/structures.schema.js';
 import type {
   ReplaceQuestionsDto,
@@ -15,9 +15,9 @@ import {
 
 export function foreignStructureIds(
   questions: readonly SessionZeroQuestionDto[],
-  journeyStructureIds: readonly string[],
+  systemStructureIds: readonly string[],
 ): string[] {
-  const owned = new Set(journeyStructureIds);
+  const owned = new Set(systemStructureIds);
 
   return questions
     .flatMap((question) => [question.structureId, question.sourceStructureId])
@@ -28,32 +28,32 @@ export function foreignStructureIds(
 export class SessionZeroService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
   async findAll(
     userId: string,
-    journeyId: string,
+    systemId: string,
   ): Promise<SessionZeroQuestion[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+    await this.systemsService.ensureVisible(userId, systemId);
     return this.db
       .select()
       .from(sessionZeroQuestions)
-      .where(eq(sessionZeroQuestions.journeyId, journeyId))
+      .where(eq(sessionZeroQuestions.systemId, systemId))
       .orderBy(asc(sessionZeroQuestions.position));
   }
 
   async replace(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: ReplaceQuestionsDto,
   ): Promise<SessionZeroQuestion[]> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
     const owned = await this.db
       .select({ id: structures.id })
       .from(structures)
-      .where(eq(structures.journeyId, journeyId));
+      .where(eq(structures.systemId, systemId));
 
     if (
       foreignStructureIds(
@@ -70,19 +70,19 @@ export class SessionZeroService {
     await this.db.transaction(async (tx) => {
       await tx
         .delete(sessionZeroQuestions)
-        .where(eq(sessionZeroQuestions.journeyId, journeyId));
+        .where(eq(sessionZeroQuestions.systemId, systemId));
 
       if (dto.questions.length > 0) {
         await tx.insert(sessionZeroQuestions).values(
           dto.questions.map((question, position) => ({
             ...question,
-            journeyId,
+            systemId,
             position,
           })),
         );
       }
     });
 
-    return this.findAll(userId, journeyId);
+    return this.findAll(userId, systemId);
   }
 }

@@ -14,25 +14,25 @@ import { type SetLinksDto, setLinksSchema } from './dto/set-links.dto.js';
 import { LinksService } from './links.service.js';
 
 @ApiTags('links')
-@Controller('journeys/:journeyId')
+@Controller('systems/:systemId')
 export class LinksController {
   constructor(private readonly linksService: LinksService) {}
 
   @Get('links')
   findAll(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.linksService.findAll(session.user.id, journeyId);
+    return this.linksService.findAll(session.user.id, systemId);
   }
 
   @Put('resources/:id/links')
   set(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(setLinksSchema)) dto: SetLinksDto,
   ) {
-    return this.linksService.set(session.user.id, journeyId, id, dto);
+    return this.linksService.set(session.user.id, systemId, id, dto);
   }
 }

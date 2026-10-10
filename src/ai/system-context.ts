@@ -3,7 +3,7 @@ import type { Campaign } from '../campaigns/campaigns.schema.js';
 import type { StructureField } from '../structures/structure-field.js';
 import type {
   WorldFieldTag,
-  WorldJourney,
+  WorldSystem,
   WorldStructure,
 } from './world-source.js';
 
@@ -74,15 +74,15 @@ export function describeValues(
     .join('\n');
 }
 
-export function describeJourney(
-  journey: WorldJourney,
+export function describeSystem(
+  system: WorldSystem,
   structures: readonly WorldStructure[],
   fieldTags: readonly WorldFieldTag[] = [],
 ): string {
   return [
-    `Journey: ${journey.name}`,
-    `Description: ${journey.description ?? 'none'}`,
-    `Main die: ${journey.mainDie ?? 'none'}`,
+    `System: ${system.name}`,
+    `Description: ${system.description ?? 'none'}`,
+    `Main die: ${system.mainDie ?? 'none'}`,
     'Structures:',
     ...structures.map((structure) => {
       const tags = structure.tags.map(

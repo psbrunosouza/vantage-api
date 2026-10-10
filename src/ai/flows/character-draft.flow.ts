@@ -13,9 +13,9 @@ import {
 import { layoutFields } from '../field-layout.js';
 import {
   describeFields,
-  describeJourney,
+  describeSystem,
   fillableFields,
-} from '../journey-context.js';
+} from '../system-context.js';
 import type { WorldSource } from '../world-source.js';
 
 export interface CharacterDraft {
@@ -26,10 +26,10 @@ export interface CharacterDraft {
 
 const PROMPT = [
   'You create the player character for a solo tabletop RPG played in Vantage.',
-  'The character must fit the world and the rule system of the journey.',
+  'The character must fit the world and the rule system of the system.',
   'Follow the player concept when there is one. Otherwise invent a compelling one.',
   'Numbers must be balanced for a starting character.',
-  'Write in the language of the journey.',
+  'Write in the language of the system.',
 ].join('\n');
 
 const DESIGN_PROMPT =
@@ -78,9 +78,9 @@ export class CharacterDraftFlow {
     source: WorldSource,
     concept: string | undefined,
   ): Promise<CharacterDraft> {
-    const [credentials, journey, structures, fieldTags] = await Promise.all([
+    const [credentials, system, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
-      source.journey(),
+      source.system(),
       source.structures(),
       source.fieldTags(),
     ]);
@@ -95,7 +95,7 @@ export class CharacterDraftFlow {
     }
 
     const context = [
-      describeJourney(journey, structures, fieldTags),
+      describeSystem(system, structures, fieldTags),
       `Player concept: ${concept || 'none, invent one'}`,
     ].join('\n\n');
     const fillable = fillableFields(actors.fields);

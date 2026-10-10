@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { JourneysModule } from '../journeys/journeys.module.js';
+import { SystemsModule } from '../systems/systems.module.js';
 import { InvitesController } from './invites.controller.js';
 import { InvitesService } from './invites.service.js';
 
 @Module({
-  imports: [JourneysModule],
+  imports: [SystemsModule],
   controllers: [InvitesController],
   providers: [InvitesService],
 })

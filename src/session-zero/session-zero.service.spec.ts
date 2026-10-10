@@ -15,7 +15,7 @@ const question = (
 });
 
 describe('foreignStructureIds', () => {
-  it('accepts structures of the journey and empty links', () => {
+  it('accepts structures of the system and empty links', () => {
     expect(
       foreignStructureIds(
         [question('crew', 'factions'), question(null, null)],
@@ -24,7 +24,7 @@ describe('foreignStructureIds', () => {
     ).toEqual([]);
   });
 
-  it('flags structures from another journey', () => {
+  it('flags structures from another system', () => {
     expect(
       foreignStructureIds([question('crew', 'elsewhere')], ['crew']),
     ).toEqual(['elsewhere']);

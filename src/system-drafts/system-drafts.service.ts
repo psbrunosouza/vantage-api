@@ -8,9 +8,9 @@ import {
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { createJourneySchema } from '../journeys/dto/create-journey.dto.js';
-import type { Journey } from '../journeys/journeys.schema.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { createSystemSchema } from '../systems/dto/create-system.dto.js';
+import type { System } from '../systems/systems.schema.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { memberResources } from '../members/members.schema.js';
 import { parseResourceValues } from '../resources/resource-values.js';
 import { resources } from '../resources/resources.schema.js';
@@ -50,7 +50,7 @@ const STRUCTURE_NOT_FOUND = {
 export class SystemDraftsService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
   findIncomplete(ownerId: string): Promise<SystemDraft[]> {
@@ -105,36 +105,36 @@ export class SystemDraftsService {
     await this.db.delete(systemDrafts).where(this.ownedBy(ownerId, id));
   }
 
-  async commit(ownerId: string, id: string): Promise<Journey> {
+  async commit(ownerId: string, id: string): Promise<System> {
     const draft = await this.findOpen(ownerId, id);
-    const system = createJourneySchema.safeParse(draft.system);
+    const parsed = createSystemSchema.safeParse(draft.system);
 
-    if (!system.success) {
+    if (!parsed.success) {
       throw new BadRequestException({
         code: 'DRAFT_SYSTEM_INVALID',
         message: 'The system needs a name and initials.',
       });
     }
 
-    const [systemStructureTags, systemFieldTags] = await Promise.all([
+    const [globalStructureTags, globalFieldTags] = await Promise.all([
       this.db
         .select({ id: structureTags.id, slug: structureTags.slug })
         .from(structureTags)
-        .where(isNull(structureTags.journeyId)),
+        .where(isNull(structureTags.systemId)),
       this.db
         .select({ slug: fieldTags.slug })
         .from(fieldTags)
-        .where(isNull(fieldTags.journeyId)),
+        .where(isNull(fieldTags.systemId)),
     ]);
 
     if (
       takenSlugs(
         draft.structureTags,
-        systemStructureTags.map((tag) => tag.slug),
+        globalStructureTags.map((tag) => tag.slug),
       ).length > 0 ||
       takenSlugs(
         draft.fieldTags,
-        systemFieldTags.map((tag) => tag.slug),
+        globalFieldTags.map((tag) => tag.slug),
       ).length > 0
     ) {
       throw new ConflictException(TAG_EXISTS);
@@ -142,7 +142,7 @@ export class SystemDraftsService {
 
     if (
       unknownTagIds(draft.structures, [
-        ...systemStructureTags.map((tag) => tag.id),
+        ...globalStructureTags.map((tag) => tag.id),
         ...draft.structureTags.map((tag) => tag.id),
       ]).length > 0
     ) {
@@ -161,7 +161,7 @@ export class SystemDraftsService {
       throw new BadRequestException(STRUCTURE_NOT_FOUND);
     }
 
-    const actorsTagId = systemStructureTags.find(
+    const actorsTagId = globalStructureTags.find(
       (tag) => tag.slug === ACTORS_SLUG,
     )?.id;
     const world = draft.character
@@ -175,19 +175,19 @@ export class SystemDraftsService {
     );
 
     return this.db.transaction(async (tx) => {
-      const journey = await this.journeysService.insert(
+      const system = await this.systemsService.insert(
         tx,
         ownerId,
-        system.data,
+        parsed.data,
       );
-      const journeyId = journey.id;
+      const systemId = system.id;
 
       if (draft.structureTags.length > 0) {
         await tx.insert(structureTags).values(
           draft.structureTags.map((tag) => ({
             ...tag,
             slug: slugify(tag.name),
-            journeyId,
+            systemId,
           })),
         );
       }
@@ -197,7 +197,7 @@ export class SystemDraftsService {
           draft.fieldTags.map((tag) => ({
             ...tag,
             slug: slugify(tag.name),
-            journeyId,
+            systemId,
           })),
         );
       }
@@ -211,7 +211,7 @@ export class SystemDraftsService {
             color: structure.color,
             aiNote: structure.aiNote,
             fields: structure.fields ?? [],
-            journeyId,
+            systemId,
           })),
         );
 
@@ -249,14 +249,14 @@ export class SystemDraftsService {
 
         await tx
           .insert(memberResources)
-          .values({ resourceId: character.id, journeyId, userId: ownerId });
+          .values({ resourceId: character.id, systemId, userId: ownerId });
       }
 
       if (draft.questions.length > 0) {
         await tx.insert(sessionZeroQuestions).values(
           draft.questions.map((question, position) => ({
             ...question,
-            journeyId,
+            systemId,
             position,
           })),
         );
@@ -264,10 +264,10 @@ export class SystemDraftsService {
 
       await tx
         .update(systemDrafts)
-        .set({ status: 'complete', systemId: journeyId })
+        .set({ status: 'complete', systemId })
         .where(eq(systemDrafts.id, id));
 
-      return journey;
+      return system;
     });
   }
 

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { isActorStructure } from './actors.js';
 import type { StructureTag } from './structure-tags.schema.js';
 
-const tag = (slug: string, journeyId: string | null): StructureTag => ({
+const tag = (slug: string, systemId: string | null): StructureTag => ({
   id: slug,
-  journeyId,
+  systemId,
   slug,
   name: slug,
   description: slug,
@@ -17,8 +17,8 @@ describe('isActorStructure', () => {
     expect(isActorStructure({ tags: [tag('atores', null)] })).toBe(true);
   });
 
-  it('rejects a journey tag with the same slug', () => {
-    expect(isActorStructure({ tags: [tag('atores', 'journey')] })).toBe(false);
+  it('rejects a system tag with the same slug', () => {
+    expect(isActorStructure({ tags: [tag('atores', 'system')] })).toBe(false);
   });
 
   it('rejects structures without the actors tag', () => {

@@ -1,13 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import { type AiTool, aiTool } from '../ai-tool.js';
-import { describeValues } from '../journey-context.js';
+import { describeValues } from '../system-context.js';
 import type { CharactersSource } from './list-characters.tool.js';
 
 export function readSheetTool(
   source: CharactersSource,
   userId: string,
-  journeyId: string,
+  systemId: string,
 ): AiTool {
   return aiTool({
     name: 'read_sheet',
@@ -18,8 +18,8 @@ export function readSheetTool(
     }),
     run: async ({ characterId }) => {
       const [structures, resources] = await Promise.all([
-        source.structures.findAll(userId, journeyId),
-        source.resources.findAll(userId, journeyId),
+        source.structures.findAll(userId, systemId),
+        source.resources.findAll(userId, systemId),
       ]);
       const resource = resources.find(
         (candidate) => candidate.id === characterId,

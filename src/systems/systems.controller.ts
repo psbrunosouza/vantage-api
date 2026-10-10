@@ -18,40 +18,40 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import type { ImageFile } from '../storage/image-storage.service.js';
 import { ImageUpload } from '../storage/image-upload.decorator.js';
 import {
-  type CreateJourneyDto,
-  createJourneySchema,
-} from './dto/create-journey.dto.js';
+  type CreateSystemDto,
+  createSystemSchema,
+} from './dto/create-system.dto.js';
 import {
-  type UpdateJourneyDto,
-  updateJourneySchema,
-} from './dto/update-journey.dto.js';
-import { JourneysService } from './journeys.service.js';
+  type UpdateSystemDto,
+  updateSystemSchema,
+} from './dto/update-system.dto.js';
+import { SystemsService } from './systems.service.js';
 
-@ApiTags('journeys')
-@Controller('journeys')
-export class JourneysController {
-  constructor(private readonly journeysService: JourneysService) {}
+@ApiTags('systems')
+@Controller('systems')
+export class SystemsController {
+  constructor(private readonly systemsService: SystemsService) {}
 
   @Get()
   findAll(@Session() session: UserSession<Auth>) {
-    return this.journeysService.findAll(session.user.id);
+    return this.systemsService.findAll(session.user.id);
   }
 
   @Post()
   create(
     @Session() session: UserSession<Auth>,
-    @Body(new ZodValidationPipe(createJourneySchema)) dto: CreateJourneyDto,
+    @Body(new ZodValidationPipe(createSystemSchema)) dto: CreateSystemDto,
   ) {
-    return this.journeysService.create(session.user.id, dto);
+    return this.systemsService.create(session.user.id, dto);
   }
 
   @Patch(':id')
   update(
     @Session() session: UserSession<Auth>,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(updateJourneySchema)) dto: UpdateJourneyDto,
+    @Body(new ZodValidationPipe(updateSystemSchema)) dto: UpdateSystemDto,
   ) {
-    return this.journeysService.update(session.user.id, id, dto);
+    return this.systemsService.update(session.user.id, id, dto);
   }
 
   @Post(':id/avatar')
@@ -61,7 +61,7 @@ export class JourneysController {
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: ImageFile | undefined,
   ) {
-    return this.journeysService.replaceAvatar(session.user.id, id, file);
+    return this.systemsService.replaceAvatar(session.user.id, id, file);
   }
 
   @Delete(':id')
@@ -70,6 +70,6 @@ export class JourneysController {
     @Session() session: UserSession<Auth>,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.journeysService.remove(session.user.id, id);
+    return this.systemsService.remove(session.user.id, id);
   }
 }

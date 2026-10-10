@@ -5,17 +5,17 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { users } from '../auth/auth.schema.js';
 import { DATABASE } from '../database/database.module.js';
 import {
-  type Journey,
-  journeyMembers,
-  journeys,
-} from '../journeys/journeys.schema.js';
-import { JourneysService } from '../journeys/journeys.service.js';
-import { pickMemberColor } from '../journeys/member-colors.js';
+  type System,
+  systemMembers,
+  systems,
+} from '../systems/systems.schema.js';
+import { SystemsService } from '../systems/systems.service.js';
+import { pickMemberColor } from '../systems/member-colors.js';
 
 const CODE_BYTES = 9;
 
 export interface InvitePreview {
-  journeyId: string;
+  systemId: string;
   name: string;
   initials: string;
   icon: string | null;
@@ -29,26 +29,26 @@ export interface InvitePreview {
 export class InvitesService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
-  async codeOf(userId: string, journeyId: string): Promise<{ code: string }> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+  async codeOf(userId: string, systemId: string): Promise<{ code: string }> {
+    await this.systemsService.ensureOwner(userId, systemId);
 
-    const [journey] = await this.db
-      .select({ inviteCode: journeys.inviteCode })
-      .from(journeys)
-      .where(eq(journeys.id, journeyId));
+    const [system] = await this.db
+      .select({ inviteCode: systems.inviteCode })
+      .from(systems)
+      .where(eq(systems.id, systemId));
 
-    if (journey.inviteCode) {
-      return { code: journey.inviteCode };
+    if (system.inviteCode) {
+      return { code: system.inviteCode };
     }
 
     const code = randomBytes(CODE_BYTES).toString('base64url');
     await this.db
-      .update(journeys)
+      .update(systems)
       .set({ inviteCode: code })
-      .where(eq(journeys.id, journeyId));
+      .where(eq(systems.id, systemId));
 
     return { code };
   }
@@ -56,17 +56,17 @@ export class InvitesService {
   async preview(userId: string, code: string): Promise<InvitePreview> {
     const [found] = await this.db
       .select({
-        journeyId: journeys.id,
-        name: journeys.name,
-        initials: journeys.initials,
-        icon: journeys.icon,
-        color: journeys.color,
-        avatarUrl: journeys.avatarUrl,
+        systemId: systems.id,
+        name: systems.name,
+        initials: systems.initials,
+        icon: systems.icon,
+        color: systems.color,
+        avatarUrl: systems.avatarUrl,
         ownerName: users.name,
       })
-      .from(journeys)
-      .innerJoin(users, eq(users.id, journeys.ownerId))
-      .where(eq(journeys.inviteCode, code));
+      .from(systems)
+      .innerJoin(users, eq(users.id, systems.ownerId))
+      .where(eq(systems.inviteCode, code));
 
     if (!found)
       throw new NotFoundException({
@@ -76,17 +76,17 @@ export class InvitesService {
 
     return {
       ...found,
-      member: await this.isMember(found.journeyId, userId),
+      member: await this.isMember(found.systemId, userId),
     };
   }
 
-  async accept(userId: string, code: string): Promise<Journey> {
-    const [journey] = await this.db
+  async accept(userId: string, code: string): Promise<System> {
+    const [system] = await this.db
       .select()
-      .from(journeys)
-      .where(eq(journeys.inviteCode, code));
+      .from(systems)
+      .where(eq(systems.inviteCode, code));
 
-    if (!journey)
+    if (!system)
       throw new NotFoundException({
         code: 'INVITE_NOT_FOUND',
         message: 'Invite not found.',
@@ -94,32 +94,32 @@ export class InvitesService {
 
     await this.db.transaction(async (tx) => {
       const members = await tx
-        .select({ userId: journeyMembers.userId, color: journeyMembers.color })
-        .from(journeyMembers)
-        .where(eq(journeyMembers.journeyId, journey.id));
+        .select({ userId: systemMembers.userId, color: systemMembers.color })
+        .from(systemMembers)
+        .where(eq(systemMembers.systemId, system.id));
 
       if (members.some((member) => member.userId === userId)) {
         return;
       }
 
-      await tx.insert(journeyMembers).values({
-        journeyId: journey.id,
+      await tx.insert(systemMembers).values({
+        systemId: system.id,
         userId,
         color: pickMemberColor(members.map((member) => member.color)),
       });
     });
 
-    return journey;
+    return system;
   }
 
-  private async isMember(journeyId: string, userId: string): Promise<boolean> {
+  private async isMember(systemId: string, userId: string): Promise<boolean> {
     const [member] = await this.db
-      .select({ userId: journeyMembers.userId })
-      .from(journeyMembers)
+      .select({ userId: systemMembers.userId })
+      .from(systemMembers)
       .where(
         and(
-          eq(journeyMembers.journeyId, journeyId),
-          eq(journeyMembers.userId, userId),
+          eq(systemMembers.systemId, systemId),
+          eq(systemMembers.userId, userId),
         ),
       );
     return member !== undefined;

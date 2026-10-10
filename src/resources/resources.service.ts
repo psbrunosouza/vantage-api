@@ -7,7 +7,7 @@ import {
 import { and, asc, eq, getTableColumns, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { memberResources } from '../members/members.schema.js';
 import { MembersService } from '../members/members.service.js';
 import { links } from '../links/links.schema.js';
@@ -32,28 +32,28 @@ const IMAGE = 'image';
 export class ResourcesService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
     private readonly membersService: MembersService,
     private readonly imageStorage: ImageStorageService,
   ) {}
 
-  async findAll(userId: string, journeyId: string): Promise<Resource[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+  async findAll(userId: string, systemId: string): Promise<Resource[]> {
+    await this.systemsService.ensureVisible(userId, systemId);
     return this.db
       .select(getTableColumns(resources))
       .from(resources)
       .innerJoin(structures, eq(structures.id, resources.structureId))
-      .where(eq(structures.journeyId, journeyId))
+      .where(eq(structures.systemId, systemId))
       .orderBy(asc(resources.createdAt));
   }
 
   async create(
     userId: string,
-    journeyId: string,
+    systemId: string,
     structureId: string,
     dto: CreateResourceDto,
   ): Promise<Resource> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
     const [structure] = await this.db
       .select({ fields: structures.fields })
@@ -61,7 +61,7 @@ export class ResourcesService {
       .where(
         and(
           eq(structures.id, structureId),
-          eq(structures.journeyId, journeyId),
+          eq(structures.systemId, systemId),
         ),
       );
     if (!structure)
@@ -83,10 +83,10 @@ export class ResourcesService {
 
   async removeMany(
     userId: string,
-    journeyId: string,
+    systemId: string,
     ids: readonly string[],
   ): Promise<void> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
     if (ids.length === 0) return;
 
@@ -100,7 +100,7 @@ export class ResourcesService {
             this.db
               .select({ id: structures.id })
               .from(structures)
-              .where(eq(structures.journeyId, journeyId)),
+              .where(eq(structures.systemId, systemId)),
           ),
         ),
       );
@@ -108,17 +108,17 @@ export class ResourcesService {
 
   async createCharacter(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateCharacterDto,
   ): Promise<Resource> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
     return this.db.transaction(async (tx) => {
       const [actors] = await tx
         .select({ id: structures.id, fields: structures.fields })
         .from(structures)
         .where(
-          and(eq(structures.journeyId, journeyId), hasActorsTag(structures.id)),
+          and(eq(structures.systemId, systemId), hasActorsTag(structures.id)),
         )
         .orderBy(asc(structures.createdAt))
         .limit(1);
@@ -159,7 +159,7 @@ export class ResourcesService {
 
       await tx
         .insert(memberResources)
-        .values({ resourceId: resource.id, journeyId, userId });
+        .values({ resourceId: resource.id, systemId, userId });
 
       return resource;
     });
@@ -167,12 +167,12 @@ export class ResourcesService {
 
   async update(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
     dto: UpdateResourceDto,
   ): Promise<Resource> {
-    await this.membersService.ensureEditor(userId, journeyId, id);
-    const fields = await this.fieldsOf(journeyId, id);
+    await this.membersService.ensureEditor(userId, systemId, id);
+    const fields = await this.fieldsOf(systemId, id);
     const values =
       dto.values === undefined
         ? undefined
@@ -218,13 +218,13 @@ export class ResourcesService {
 
   async uploadImage(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
     fieldId: string,
     file: ImageFile | undefined,
   ): Promise<{ url: string }> {
-    await this.membersService.ensureEditor(userId, journeyId, id);
-    const fields = await this.fieldsOf(journeyId, id);
+    await this.membersService.ensureEditor(userId, systemId, id);
+    const fields = await this.fieldsOf(systemId, id);
 
     if (!fields.some((field) => field.id === fieldId && field.type === IMAGE)) {
       throw new NotFoundException({
@@ -235,21 +235,21 @@ export class ResourcesService {
 
     const url = await this.imageStorage.replace(
       BUCKET,
-      `${journeyId}/${id}/${fieldId}`,
+      `${systemId}/${id}/${fieldId}`,
       file,
     );
     return { url };
   }
 
   private async fieldsOf(
-    journeyId: string,
+    systemId: string,
     id: string,
   ): Promise<StructureField[]> {
     const [resource] = await this.db
       .select({ fields: structures.fields })
       .from(resources)
       .innerJoin(structures, eq(structures.id, resources.structureId))
-      .where(and(eq(resources.id, id), eq(structures.journeyId, journeyId)));
+      .where(and(eq(resources.id, id), eq(structures.systemId, systemId)));
 
     if (!resource)
       throw new NotFoundException({

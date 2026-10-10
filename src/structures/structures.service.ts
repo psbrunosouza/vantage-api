@@ -8,7 +8,7 @@ import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { links } from '../links/links.schema.js';
 import { keyOf, relationTargets } from '../links/relation-columns.js';
 import { resources } from '../resources/resources.schema.js';
@@ -27,34 +27,34 @@ type Transaction = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
 export class StructuresService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
-  async findAll(userId: string, journeyId: string): Promise<StructureView[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+  async findAll(userId: string, systemId: string): Promise<StructureView[]> {
+    await this.systemsService.ensureVisible(userId, systemId);
     const rows = await this.db
       .select()
       .from(structures)
-      .where(eq(structures.journeyId, journeyId))
+      .where(eq(structures.systemId, systemId))
       .orderBy(asc(structures.createdAt));
     return this.withTags(this.db, rows);
   }
 
   async create(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateStructureDto,
   ): Promise<StructureView> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const { tagIds, ...values } = dto;
 
     return this.db.transaction(async (tx) => {
       const [structure] = await tx
         .insert(structures)
-        .values({ ...values, journeyId })
+        .values({ ...values, systemId })
         .returning();
 
-      if (tagIds) await this.setTags(tx, journeyId, structure.id, tagIds);
+      if (tagIds) await this.setTags(tx, systemId, structure.id, tagIds);
 
       const [view] = await this.withTags(tx, [structure]);
       return view;
@@ -63,18 +63,18 @@ export class StructuresService {
 
   async update(
     userId: string,
-    journeyId: string,
+    systemId: string,
     id: string,
     dto: UpdateStructureDto,
   ): Promise<StructureView> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const { tagIds, ...values } = dto;
 
     return this.db.transaction(async (tx) => {
       const [structure] = await tx
         .update(structures)
         .set({ ...values, updatedAt: new Date() })
-        .where(this.inJourney(journeyId, id))
+        .where(this.inSystem(systemId, id))
         .returning();
 
       if (!structure)
@@ -83,21 +83,21 @@ export class StructuresService {
           message: 'Structure not found.',
         });
 
-      if (tagIds) await this.setTags(tx, journeyId, id, tagIds);
+      if (tagIds) await this.setTags(tx, systemId, id, tagIds);
 
       const [view] = await this.withTags(tx, [structure]);
       return view;
     });
   }
 
-  async prune(userId: string, journeyId: string, id: string): Promise<void> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+  async prune(userId: string, systemId: string, id: string): Promise<void> {
+    await this.systemsService.ensureOwner(userId, systemId);
 
     await this.db.transaction(async (tx) => {
       const [structure] = await tx
         .select({ fields: structures.fields })
         .from(structures)
-        .where(this.inJourney(journeyId, id));
+        .where(this.inSystem(systemId, id));
 
       if (!structure)
         throw new NotFoundException({
@@ -157,11 +157,11 @@ export class StructuresService {
     });
   }
 
-  async remove(userId: string, journeyId: string, id: string): Promise<void> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+  async remove(userId: string, systemId: string, id: string): Promise<void> {
+    await this.systemsService.ensureOwner(userId, systemId);
     const [structure] = await this.db
       .delete(structures)
-      .where(this.inJourney(journeyId, id))
+      .where(this.inSystem(systemId, id))
       .returning({ id: structures.id });
 
     if (!structure)
@@ -202,7 +202,7 @@ export class StructuresService {
 
   private async setTags(
     tx: Transaction,
-    journeyId: string,
+    systemId: string,
     structureId: string,
     tagIds: string[],
   ): Promise<void> {
@@ -216,8 +216,8 @@ export class StructuresService {
           and(
             inArray(structureTags.id, unique),
             or(
-              isNull(structureTags.journeyId),
-              eq(structureTags.journeyId, journeyId),
+              isNull(structureTags.systemId),
+              eq(structureTags.systemId, systemId),
             ),
           ),
         );
@@ -241,7 +241,7 @@ export class StructuresService {
     }
   }
 
-  private inJourney(journeyId: string, id: string) {
-    return and(eq(structures.journeyId, journeyId), eq(structures.id, id));
+  private inSystem(systemId: string, id: string) {
+    return and(eq(structures.systemId, systemId), eq(structures.id, id));
   }
 }

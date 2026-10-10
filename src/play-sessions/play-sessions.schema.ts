@@ -8,16 +8,16 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../auth/auth.schema.js';
-import { journeys } from '../journeys/journeys.schema.js';
+import { systems } from '../systems/systems.schema.js';
 import { resources } from '../resources/resources.schema.js';
 
 export const sessionFolders = pgTable(
   'session_folders',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    journeyId: uuid('journey_id')
+    systemId: uuid('system_id')
       .notNull()
-      .references(() => journeys.id, { onDelete: 'cascade' }),
+      .references(() => systems.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     position: integer('position').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -28,16 +28,16 @@ export const sessionFolders = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index().on(table.journeyId)],
+  (table) => [index().on(table.systemId)],
 );
 
 export const playSessions = pgTable(
   'play_sessions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    journeyId: uuid('journey_id')
+    systemId: uuid('system_id')
       .notNull()
-      .references(() => journeys.id, { onDelete: 'cascade' }),
+      .references(() => systems.id, { onDelete: 'cascade' }),
     folderId: uuid('folder_id').references(() => sessionFolders.id, {
       onDelete: 'set null',
     }),
@@ -51,7 +51,7 @@ export const playSessions = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index().on(table.journeyId), index().on(table.folderId)],
+  (table) => [index().on(table.systemId), index().on(table.folderId)],
 );
 
 export const ENTRY_KINDS = ['narrator', 'player'] as const;

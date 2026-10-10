@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { campaignGoals, themeSets } from './system-options.flow.js';
+import { campaignGoals, themeSets } from './campaign-options.flow.js';
 
 describe('themeSets', () => {
   it('uses the chosen themes for every campaign', () => {

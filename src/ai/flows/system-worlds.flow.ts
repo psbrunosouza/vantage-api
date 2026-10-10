@@ -8,14 +8,14 @@ import type {
 import type { SystemDraft } from '../../system-drafts/system-drafts.schema.js';
 import { SystemDraftsService } from '../../system-drafts/system-drafts.service.js';
 import { ACTORS_SLUG } from '../../tags/actors.js';
-import type { SystemOptionsDto } from '../dto/system-options.dto.js';
+import type { CampaignOptionsDto } from '../dto/campaign-options.dto.js';
 import { type DraftSlot, WorldSources } from '../world-source.js';
 import { PopulationFlow } from './population.flow.js';
 import {
   type StructureProposal,
   StructureProposalsFlow,
 } from './structure-proposals.flow.js';
-import { type SystemOption, SystemOptionsFlow } from './system-options.flow.js';
+import { type CampaignOption, CampaignOptionsFlow } from './campaign-options.flow.js';
 
 export function draftStructuresOf(
   proposals: readonly StructureProposal[],
@@ -42,7 +42,7 @@ export function draftStructuresOf(
 @Injectable()
 export class SystemWorldsFlow {
   constructor(
-    private readonly systemOptionsFlow: SystemOptionsFlow,
+    private readonly campaignOptionsFlow: CampaignOptionsFlow,
     private readonly structureProposalsFlow: StructureProposalsFlow,
     private readonly populationFlow: PopulationFlow,
     private readonly worldSources: WorldSources,
@@ -52,10 +52,10 @@ export class SystemWorldsFlow {
   async run(
     userId: string,
     draftId: string,
-    dto: SystemOptionsDto,
+    dto: CampaignOptionsDto,
   ): Promise<SystemDraft> {
     const draft = await this.systemDraftsService.findOpen(userId, draftId);
-    const pitches = await this.systemOptionsFlow.pitches(userId, dto);
+    const pitches = await this.campaignOptionsFlow.pitches(userId, dto);
     const results = await Promise.allSettled(
       pitches.map(async (pitch): Promise<DraftOption> => {
         const option = await pitch;
@@ -79,7 +79,7 @@ export class SystemWorldsFlow {
   private async worldOf(
     userId: string,
     draft: SystemDraft,
-    option: SystemOption,
+    option: CampaignOption,
   ): Promise<DraftWorld> {
     const slot: DraftSlot = {
       system: { ...draft.system, description: option.theme },
@@ -95,7 +95,7 @@ export class SystemWorldsFlow {
       source.structureTags(),
     ]);
     const actorsTagId = structureTags.find(
-      (tag) => tag.journeyId === null && tag.slug === ACTORS_SLUG,
+      (tag) => tag.systemId === null && tag.slug === ACTORS_SLUG,
     )?.id;
 
     slot.world = {

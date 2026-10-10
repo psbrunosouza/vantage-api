@@ -169,6 +169,13 @@
       "when": 1791661282599,
       "tag": "0023_system_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791663904424,
+      "tag": "0024_rename_journeys_to_systems",
+      "breakpoints": true
     }
   ]
 }

@@ -17,7 +17,7 @@ import {
 } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { MembersService } from '../members/members.service.js';
 import { resources } from '../resources/resources.schema.js';
 import { structures } from '../structures/structures.schema.js';
@@ -33,28 +33,28 @@ import {
 export class LinksService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
     private readonly membersService: MembersService,
   ) {}
 
-  async findAll(userId: string, journeyId: string): Promise<Link[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+  async findAll(userId: string, systemId: string): Promise<Link[]> {
+    await this.systemsService.ensureVisible(userId, systemId);
     return this.db
       .select(getTableColumns(links))
       .from(links)
       .innerJoin(resources, eq(resources.id, links.sourceId))
       .innerJoin(structures, eq(structures.id, resources.structureId))
-      .where(eq(structures.journeyId, journeyId))
+      .where(eq(structures.systemId, systemId))
       .orderBy(asc(links.createdAt));
   }
 
   async set(
     userId: string,
-    journeyId: string,
+    systemId: string,
     sourceId: string,
     dto: SetLinksDto,
   ): Promise<Link[]> {
-    await this.membersService.ensureEditor(userId, journeyId, sourceId);
+    await this.membersService.ensureEditor(userId, systemId, sourceId);
 
     return this.db.transaction(async (tx) => {
       const [source] = await tx
@@ -62,7 +62,7 @@ export class LinksService {
         .from(resources)
         .innerJoin(structures, eq(structures.id, resources.structureId))
         .where(
-          and(eq(resources.id, sourceId), eq(structures.journeyId, journeyId)),
+          and(eq(resources.id, sourceId), eq(structures.systemId, systemId)),
         );
 
       if (!source)
@@ -114,7 +114,7 @@ export class LinksService {
             and(
               inArray(resources.id, targetIds),
               eq(resources.structureId, relation.structureId),
-              eq(structures.journeyId, journeyId),
+              eq(structures.systemId, systemId),
             ),
           );
 

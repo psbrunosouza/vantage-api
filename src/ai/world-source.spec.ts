@@ -15,7 +15,7 @@ const field = (id: string, type = 'short-text') => ({
 
 const actors = {
   id: 'actors',
-  journeyId: null,
+  systemId: null,
   slug: 'atores',
   name: 'Atores',
   description: 'x',

@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { type Campaign, campaigns } from './campaigns.schema.js';
 import type { CreateCampaignDto } from './dto/create-campaign.dto.js';
 
@@ -10,51 +10,51 @@ import type { CreateCampaignDto } from './dto/create-campaign.dto.js';
 export class CampaignsService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
-  async find(userId: string, journeyId: string): Promise<Campaign | null> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+  async find(userId: string, systemId: string): Promise<Campaign | null> {
+    await this.systemsService.ensureVisible(userId, systemId);
     const [campaign] = await this.db
       .select()
       .from(campaigns)
-      .where(eq(campaigns.journeyId, journeyId));
+      .where(eq(campaigns.systemId, systemId));
     return campaign ?? null;
   }
 
   async create(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateCampaignDto,
   ): Promise<Campaign> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
-    if (await this.find(userId, journeyId)) {
+    if (await this.find(userId, systemId)) {
       throw new ConflictException({
         code: 'CAMPAIGN_EXISTS',
-        message: 'This journey already has a campaign.',
+        message: 'This system already has a campaign.',
       });
     }
 
     const [campaign] = await this.db
       .insert(campaigns)
-      .values({ ...dto, journeyId })
+      .values({ ...dto, systemId })
       .returning();
     return campaign;
   }
 
   async replace(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateCampaignDto,
   ): Promise<Campaign> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
 
     const [campaign] = await this.db
       .insert(campaigns)
-      .values({ ...dto, journeyId })
+      .values({ ...dto, systemId })
       .onConflictDoUpdate({
-        target: campaigns.journeyId,
+        target: campaigns.systemId,
         set: { ...dto, updatedAt: new Date() },
       })
       .returning();

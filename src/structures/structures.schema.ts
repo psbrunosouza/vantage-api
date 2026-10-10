@@ -6,16 +6,16 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { journeys } from '../journeys/journeys.schema.js';
+import { systems } from '../systems/systems.schema.js';
 import type { StructureField } from './structure-field.js';
 
 export const structures = pgTable(
   'structures',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    journeyId: uuid('journey_id')
+    systemId: uuid('system_id')
       .notNull()
-      .references(() => journeys.id, { onDelete: 'cascade' }),
+      .references(() => systems.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     icon: text('icon').notNull(),
     color: text('color'),
@@ -29,7 +29,7 @@ export const structures = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index().on(table.journeyId)],
+  (table) => [index().on(table.systemId)],
 );
 
 export type Structure = typeof structures.$inferSelect;

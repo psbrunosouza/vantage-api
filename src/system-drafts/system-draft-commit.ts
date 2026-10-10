@@ -29,9 +29,9 @@ export function orphanResources(
 
 export function takenSlugs(
   tags: readonly DraftTag[],
-  systemSlugs: readonly string[],
+  globalSlugs: readonly string[],
 ): string[] {
-  const seen = new Set(systemSlugs);
+  const seen = new Set(globalSlugs);
 
   return tags
     .map((tag) => slugify(tag.name))

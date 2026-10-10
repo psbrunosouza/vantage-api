@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CatalogService } from '../../catalog/catalog.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { type AiCredentials, AiService } from '../ai.service.js';
-import type { SystemOptionsDto } from '../dto/system-options.dto.js';
+import type { CampaignOptionsDto } from '../dto/campaign-options.dto.js';
 
 const PROMPT = [
   'You are an experienced game master pitching new tabletop RPG campaigns to your friends. Your only goal is to make them say "I want to play this!"',
@@ -93,7 +93,7 @@ const structureSchema = z.object({
   icon: z.enum(STRUCTURE_ICONS),
 });
 
-export const systemOptionSchema = z.object({
+export const campaignOptionSchema = z.object({
   theme: z.string().min(1).describe('The campaign synopsis.'),
   themes: z.array(z.string().min(1)).describe('The translated themes.'),
   structures: z
@@ -102,12 +102,12 @@ export const systemOptionSchema = z.object({
     .describe('Structures that fit the world of the campaign.'),
 });
 
-export type SystemOption = z.infer<typeof systemOptionSchema>;
+export type CampaignOption = z.infer<typeof campaignOptionSchema>;
 
 const OUTPUT = {
   name: 'submit_campaign',
   description: 'Submits the campaign.',
-  input: systemOptionSchema,
+  input: campaignOptionSchema,
 };
 
 export function themeSets(chosen: string[], random: string[]): string[][] {
@@ -137,21 +137,21 @@ export function campaignGoals(random = Math.random): string[] {
 }
 
 @Injectable()
-export class SystemOptionsFlow {
+export class CampaignOptionsFlow {
   constructor(
     private readonly aiService: AiService,
     private readonly catalogService: CatalogService,
     private readonly runner: AgentRunner,
   ) {}
 
-  async run(userId: string, dto: SystemOptionsDto): Promise<SystemOption[]> {
+  async run(userId: string, dto: CampaignOptionsDto): Promise<CampaignOption[]> {
     return Promise.all(await this.pitches(userId, dto));
   }
 
   async pitches(
     userId: string,
-    dto: SystemOptionsDto,
-  ): Promise<Promise<SystemOption>[]> {
+    dto: CampaignOptionsDto,
+  ): Promise<Promise<CampaignOption>[]> {
     const chosen = dto.themes ?? [];
     const [credentials, random] = await Promise.all([
       this.aiService.credentialsOf(userId),
@@ -170,8 +170,8 @@ export class SystemOptionsFlow {
     credentials: AiCredentials,
     set: string[],
     goal: string,
-    dto: SystemOptionsDto,
-  ): Promise<SystemOption> {
+    dto: CampaignOptionsDto,
+  ): Promise<CampaignOption> {
     return this.runner.submit(
       credentials,
       [

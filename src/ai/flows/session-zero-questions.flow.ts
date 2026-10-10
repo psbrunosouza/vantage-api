@@ -9,8 +9,8 @@ import { keysOf } from '../field-values.js';
 import {
   describeCampaign,
   describeFields,
-  describeJourney,
-} from '../journey-context.js';
+  describeSystem,
+} from '../system-context.js';
 import type { WorldSource } from '../world-source.js';
 import { worldOf } from './population.flow.js';
 
@@ -26,7 +26,7 @@ const PROMPT = [
   'A bond question asks which other player the character already knows. Its answer is written in a text field.',
   'Questions are short, in the second person, and make the player imagine a scene of the campaign.',
   'Never ask twice for the same field.',
-  'Write in the language of the journey.',
+  'Write in the language of the system.',
 ].join('\n');
 
 export function askableFields(fields: readonly StructureField[]): StructureField[] {
@@ -44,10 +44,10 @@ export class SessionZeroQuestionsFlow {
     userId: string,
     source: WorldSource,
   ): Promise<SessionZeroQuestionDto[]> {
-    const [credentials, journey, campaign, structures, fieldTags] =
+    const [credentials, system, campaign, structures, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId),
-        source.journey(),
+        source.system(),
         source.campaign(),
         source.structures(),
         source.fieldTags(),
@@ -112,7 +112,7 @@ export class SessionZeroQuestionsFlow {
         {
           role: 'user',
           content: [
-            describeJourney(journey, structures, fieldTags),
+            describeSystem(system, structures, fieldTags),
             campaign ? describeCampaign(campaign) : null,
             `Player sheet (${actors.name}) fields you can fill:\n${[...asked]
               .map(([key, field]) => `- ${key}: ${describeFields([field], fieldTags)}`)

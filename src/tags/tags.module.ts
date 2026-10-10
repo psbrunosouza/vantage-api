@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { JourneysModule } from '../journeys/journeys.module.js';
+import { SystemsModule } from '../systems/systems.module.js';
 import { TagsController } from './tags.controller.js';
 import { TagsService } from './tags.service.js';
 
 @Module({
-  imports: [JourneysModule],
+  imports: [SystemsModule],
   controllers: [TagsController],
   providers: [TagsService],
   exports: [TagsService],

@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Campaign } from '../campaigns/campaigns.schema.js';
 import { CampaignsService } from '../campaigns/campaigns.service.js';
-import type { Journey } from '../journeys/journeys.schema.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import type { System } from '../systems/systems.schema.js';
+import { SystemsService } from '../systems/systems.service.js';
 import { parseResourceValues } from '../resources/resource-values.js';
 import type {
   Resource,
@@ -25,10 +25,10 @@ import type { FieldTag } from '../tags/field-tags.schema.js';
 import type { StructureTag } from '../tags/structure-tags.schema.js';
 import { TagsService, slugify } from '../tags/tags.service.js';
 
-export type WorldJourney = Pick<Journey, 'name' | 'description' | 'mainDie'>;
+export type WorldSystem = Pick<System, 'name' | 'description' | 'mainDie'>;
 export type WorldStructureTag = Pick<
   StructureTag,
-  'id' | 'journeyId' | 'slug' | 'name' | 'description'
+  'id' | 'systemId' | 'slug' | 'name' | 'description'
 >;
 export type WorldFieldTag = Pick<FieldTag, 'id' | 'slug' | 'name' | 'description'>;
 export type WorldStructure = Pick<
@@ -47,7 +47,7 @@ export interface NewResource {
 }
 
 export interface WorldSource {
-  journey(): Promise<WorldJourney>;
+  system(): Promise<WorldSystem>;
   campaign(): Promise<Campaign | null>;
   structures(): Promise<WorldStructure[]>;
   resources(): Promise<WorldResource[]>;
@@ -68,7 +68,7 @@ export interface DraftSlot {
 @Injectable()
 export class WorldSources {
   constructor(
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
     private readonly campaignsService: CampaignsService,
     private readonly structuresService: StructuresService,
     private readonly resourcesService: ResourcesService,
@@ -76,30 +76,30 @@ export class WorldSources {
     private readonly systemDraftsService: SystemDraftsService,
   ) {}
 
-  async ofJourney(userId: string, journeyId: string): Promise<WorldSource> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+  async ofSystem(userId: string, systemId: string): Promise<WorldSource> {
+    await this.systemsService.ensureOwner(userId, systemId);
 
     return {
-      journey: () => this.journeysService.findOne(userId, journeyId),
-      campaign: () => this.campaignsService.find(userId, journeyId),
-      structures: () => this.structuresService.findAll(userId, journeyId),
-      resources: () => this.resourcesService.findAll(userId, journeyId),
+      system: () => this.systemsService.findOne(userId, systemId),
+      campaign: () => this.campaignsService.find(userId, systemId),
+      structures: () => this.structuresService.findAll(userId, systemId),
+      resources: () => this.resourcesService.findAll(userId, systemId),
       structureTags: () =>
-        this.tagsService.findStructureTags(userId, journeyId),
-      fieldTags: () => this.tagsService.findFieldTags(userId, journeyId),
+        this.tagsService.findStructureTags(userId, systemId),
+      fieldTags: () => this.tagsService.findFieldTags(userId, systemId),
       replaceResources: async (removed, created) => {
-        await this.resourcesService.removeMany(userId, journeyId, removed);
+        await this.resourcesService.removeMany(userId, systemId, removed);
 
         for (const resource of created) {
           await this.resourcesService.create(
             userId,
-            journeyId,
+            systemId,
             resource.structureId,
             { name: resource.name, values: resource.values },
           );
         }
 
-        return this.resourcesService.findAll(userId, journeyId);
+        return this.resourcesService.findAll(userId, systemId);
       },
     };
   }
@@ -123,20 +123,20 @@ export class WorldSources {
   }
 
   async ofSlot(draft: SystemDraft, slot: DraftSlot): Promise<WorldSource> {
-    const [systemStructureTags, systemFieldTags] = await Promise.all([
-      this.tagsService.findSystemStructureTags(),
-      this.tagsService.findSystemFieldTags(),
+    const [globalStructureTags, globalFieldTags] = await Promise.all([
+      this.tagsService.findGlobalStructureTags(),
+      this.tagsService.findGlobalFieldTags(),
     ]);
     const structureTags = [
-      ...systemStructureTags,
+      ...globalStructureTags,
       ...draft.structureTags.map((tag) => draftTag(draft.id, tag)),
     ];
     const fieldTags = [
-      ...systemFieldTags,
+      ...globalFieldTags,
       ...draft.fieldTags.map((tag) => draftTag(draft.id, tag)),
     ];
     return {
-      journey: async () => ({
+      system: async () => ({
         name: slot.system.name ?? '',
         description: slot.system.description ?? null,
         mainDie: slot.system.mainDie ?? null,
@@ -198,6 +198,6 @@ function draftTag(draftId: string, tag: DraftTag) {
   return {
     ...tag,
     slug: slugify(tag.name),
-    journeyId: draftId,
+    systemId: draftId,
   };
 }

@@ -8,14 +8,14 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { journeys } from '../journeys/journeys.schema.js';
+import { systems } from '../systems/systems.schema.js';
 import { structures } from '../structures/structures.schema.js';
 
 export const structureTags = pgTable(
   'structure_tags',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    journeyId: uuid('journey_id').references(() => journeys.id, {
+    systemId: uuid('system_id').references(() => systems.id, {
       onDelete: 'cascade',
     }),
     slug: text('slug').notNull(),
@@ -30,14 +30,14 @@ export const structureTags = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    index().on(table.journeyId),
-    uniqueIndex('structure_tags_journey_slug_unique').on(
-      table.journeyId,
+    index().on(table.systemId),
+    uniqueIndex('structure_tags_system_slug_unique').on(
+      table.systemId,
       table.slug,
     ),
-    uniqueIndex('structure_tags_system_slug_unique')
+    uniqueIndex('structure_tags_global_slug_unique')
       .on(table.slug)
-      .where(sql`${table.journeyId} is null`),
+      .where(sql`${table.systemId} is null`),
   ],
 );
 

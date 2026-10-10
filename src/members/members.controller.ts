@@ -17,29 +17,29 @@ import {
 import { MembersService } from './members.service.js';
 
 @ApiTags('members')
-@Controller('journeys/:journeyId/members')
+@Controller('systems/:systemId/members')
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @Get()
   findAll(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.membersService.findAll(session.user.id, journeyId);
+    return this.membersService.findAll(session.user.id, systemId);
   }
 
   @Put(':userId/resources')
   setResources(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body(new ZodValidationPipe(setMemberResourcesSchema))
     dto: SetMemberResourcesDto,
   ) {
     return this.membersService.setResources(
       session.user.id,
-      journeyId,
+      systemId,
       userId,
       dto,
     );

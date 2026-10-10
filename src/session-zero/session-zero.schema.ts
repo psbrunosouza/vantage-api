@@ -7,7 +7,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { journeys } from '../journeys/journeys.schema.js';
+import { systems } from '../systems/systems.schema.js';
 import { structures } from '../structures/structures.schema.js';
 
 export const SESSION_ZERO_KINDS = ['field', 'record', 'bond'] as const;
@@ -18,9 +18,9 @@ export const sessionZeroQuestions = pgTable(
   'session_zero_questions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    journeyId: uuid('journey_id')
+    systemId: uuid('system_id')
       .notNull()
-      .references(() => journeys.id, { onDelete: 'cascade' }),
+      .references(() => systems.id, { onDelete: 'cascade' }),
     position: integer('position').notNull(),
     prompt: text('prompt').notNull(),
     kind: text('kind', { enum: SESSION_ZERO_KINDS }).notNull(),
@@ -44,7 +44,7 @@ export const sessionZeroQuestions = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index().on(table.journeyId, table.position)],
+  (table) => [index().on(table.systemId, table.position)],
 );
 
 export type SessionZeroQuestion = typeof sessionZeroQuestions.$inferSelect;

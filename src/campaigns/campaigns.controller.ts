@@ -18,33 +18,33 @@ import {
 } from './dto/create-campaign.dto.js';
 
 @ApiTags('campaigns')
-@Controller('journeys/:journeyId/campaign')
+@Controller('systems/:systemId/campaign')
 export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}
 
   @Get()
   find(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.campaignsService.find(session.user.id, journeyId);
+    return this.campaignsService.find(session.user.id, systemId);
   }
 
   @Post()
   create(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(createCampaignSchema)) dto: CreateCampaignDto,
   ) {
-    return this.campaignsService.create(session.user.id, journeyId, dto);
+    return this.campaignsService.create(session.user.id, systemId, dto);
   }
 
   @Put()
   replace(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(createCampaignSchema)) dto: CreateCampaignDto,
   ) {
-    return this.campaignsService.replace(session.user.id, journeyId, dto);
+    return this.campaignsService.replace(session.user.id, systemId, dto);
   }
 }

@@ -25,9 +25,9 @@ import {
   structureProposalsSchema,
 } from './dto/structure-proposals.dto.js';
 import {
-  type SystemOptionsDto,
-  systemOptionsSchema,
-} from './dto/system-options.dto.js';
+  type CampaignOptionsDto,
+  campaignOptionsSchema,
+} from './dto/campaign-options.dto.js';
 import {
   type UpdateAiSettingsDto,
   updateAiSettingsSchema,
@@ -39,7 +39,7 @@ import { NarrationFlow } from './flows/narration.flow.js';
 import { PopulationFlow } from './flows/population.flow.js';
 import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
-import { SystemOptionsFlow } from './flows/system-options.flow.js';
+import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
 import { SystemWorldsFlow } from './flows/system-worlds.flow.js';
 import { WorldSources } from './world-source.js';
 
@@ -48,7 +48,7 @@ import { WorldSources } from './world-source.js';
 export class AiController {
   constructor(
     private readonly aiService: AiService,
-    private readonly systemOptionsFlow: SystemOptionsFlow,
+    private readonly campaignOptionsFlow: CampaignOptionsFlow,
     private readonly campaignStartFlow: CampaignStartFlow,
     private readonly characterOptionsFlow: CharacterOptionsFlow,
     private readonly characterDraftFlow: CharacterDraftFlow,
@@ -85,40 +85,40 @@ export class AiController {
     return this.aiService.removeKey(session.user.id);
   }
 
-  @Post('system-options')
-  systemOptions(
+  @Post('campaign-options')
+  campaignOptions(
     @Session() session: UserSession<Auth>,
-    @Body(new ZodValidationPipe(systemOptionsSchema)) dto: SystemOptionsDto,
+    @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
   ) {
-    return this.systemOptionsFlow.run(session.user.id, dto);
+    return this.campaignOptionsFlow.run(session.user.id, dto);
   }
 
   @Post('system-drafts/:draftId/worlds')
   systemWorlds(
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
-    @Body(new ZodValidationPipe(systemOptionsSchema)) dto: SystemOptionsDto,
+    @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
   ) {
     return this.systemWorldsFlow.run(session.user.id, draftId, dto);
   }
 
-  @Post('journeys/:journeyId/campaign-start')
+  @Post('systems/:systemId/campaign-start')
   campaignStart(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.campaignStartFlow.run(session.user.id, journeyId);
+    return this.campaignStartFlow.run(session.user.id, systemId);
   }
 
-  @Post('journeys/:journeyId/structures')
+  @Post('systems/:systemId/structures')
   async structureProposals(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(structureProposalsSchema))
     dto: StructureProposalsDto,
   ) {
     const userId = session.user.id;
-    const source = await this.worldSources.ofJourney(userId, journeyId);
+    const source = await this.worldSources.ofSystem(userId, systemId);
     return this.structureProposalsFlow.run(userId, source, dto);
   }
 
@@ -134,13 +134,13 @@ export class AiController {
     return this.structureProposalsFlow.run(userId, source, dto);
   }
 
-  @Post('journeys/:journeyId/session-zero/questions')
+  @Post('systems/:systemId/session-zero/questions')
   async sessionZeroQuestions(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
     const userId = session.user.id;
-    const source = await this.worldSources.ofJourney(userId, journeyId);
+    const source = await this.worldSources.ofSystem(userId, systemId);
     return this.sessionZeroQuestionsFlow.run(userId, source);
   }
 
@@ -154,14 +154,14 @@ export class AiController {
     return this.sessionZeroQuestionsFlow.run(userId, source);
   }
 
-  @Post('journeys/:journeyId/population')
+  @Post('systems/:systemId/population')
   async population(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
   ) {
     const userId = session.user.id;
-    const source = await this.worldSources.ofJourney(userId, journeyId);
+    const source = await this.worldSources.ofSystem(userId, systemId);
     return this.populationFlow.run(userId, source, dto);
   }
 
@@ -176,13 +176,13 @@ export class AiController {
     return this.populationFlow.run(userId, source, dto);
   }
 
-  @Post('journeys/:journeyId/character-options')
+  @Post('systems/:systemId/character-options')
   async characterOptions(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
     const userId = session.user.id;
-    const source = await this.worldSources.ofJourney(userId, journeyId);
+    const source = await this.worldSources.ofSystem(userId, systemId);
     return this.characterOptionsFlow.run(userId, source);
   }
 
@@ -196,14 +196,14 @@ export class AiController {
     return this.characterOptionsFlow.run(userId, source);
   }
 
-  @Post('journeys/:journeyId/character-draft')
+  @Post('systems/:systemId/character-draft')
   async characterDraft(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(characterDraftSchema)) dto: CharacterDraftDto,
   ) {
     const userId = session.user.id;
-    const source = await this.worldSources.ofJourney(userId, journeyId);
+    const source = await this.worldSources.ofSystem(userId, systemId);
     return this.characterDraftFlow.run(userId, source, dto.concept);
   }
 
@@ -218,12 +218,12 @@ export class AiController {
     return this.characterDraftFlow.run(userId, source, dto.concept);
   }
 
-  @Post('journeys/:journeyId/play-sessions/:sessionId/narration')
+  @Post('systems/:systemId/play-sessions/:sessionId/narration')
   narrate(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ) {
-    return this.narrationFlow.run(session.user.id, journeyId, sessionId);
+    return this.narrationFlow.run(session.user.id, systemId, sessionId);
   }
 }

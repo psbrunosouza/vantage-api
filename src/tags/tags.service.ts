@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { asc, eq, isNull, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { JourneysService } from '../journeys/journeys.service.js';
+import { SystemsService } from '../systems/systems.service.js';
 import type { CreateTagDto } from './dto/create-tag.dto.js';
 import { type FieldTag, fieldTags } from './field-tags.schema.js';
 import { type StructureTag, structureTags } from './structure-tags.schema.js';
@@ -25,50 +25,50 @@ export const TAG_EXISTS = {
 export class TagsService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
-    private readonly journeysService: JourneysService,
+    private readonly systemsService: SystemsService,
   ) {}
 
   async findStructureTags(
     userId: string,
-    journeyId: string,
+    systemId: string,
   ): Promise<StructureTag[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+    await this.systemsService.ensureVisible(userId, systemId);
     return this.db
       .select()
       .from(structureTags)
       .where(
         or(
-          isNull(structureTags.journeyId),
-          eq(structureTags.journeyId, journeyId),
+          isNull(structureTags.systemId),
+          eq(structureTags.systemId, systemId),
         ),
       )
       .orderBy(asc(structureTags.createdAt), asc(structureTags.name));
   }
 
-  findSystemStructureTags(): Promise<StructureTag[]> {
+  findGlobalStructureTags(): Promise<StructureTag[]> {
     return this.db
       .select()
       .from(structureTags)
-      .where(isNull(structureTags.journeyId))
+      .where(isNull(structureTags.systemId))
       .orderBy(asc(structureTags.createdAt), asc(structureTags.name));
   }
 
-  findSystemFieldTags(): Promise<FieldTag[]> {
+  findGlobalFieldTags(): Promise<FieldTag[]> {
     return this.db
       .select()
       .from(fieldTags)
-      .where(isNull(fieldTags.journeyId))
+      .where(isNull(fieldTags.systemId))
       .orderBy(asc(fieldTags.createdAt), asc(fieldTags.name));
   }
 
   async createStructureTag(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateTagDto,
   ): Promise<StructureTag> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const slug = slugify(dto.name);
-    const taken = (await this.findStructureTags(userId, journeyId)).some(
+    const taken = (await this.findStructureTags(userId, systemId)).some(
       (tag) => tag.slug === slug,
     );
 
@@ -76,30 +76,30 @@ export class TagsService {
 
     const [tag] = await this.db
       .insert(structureTags)
-      .values({ ...dto, slug, journeyId })
+      .values({ ...dto, slug, systemId })
       .returning();
     return tag;
   }
 
-  async findFieldTags(userId: string, journeyId: string): Promise<FieldTag[]> {
-    await this.journeysService.ensureVisible(userId, journeyId);
+  async findFieldTags(userId: string, systemId: string): Promise<FieldTag[]> {
+    await this.systemsService.ensureVisible(userId, systemId);
     return this.db
       .select()
       .from(fieldTags)
       .where(
-        or(isNull(fieldTags.journeyId), eq(fieldTags.journeyId, journeyId)),
+        or(isNull(fieldTags.systemId), eq(fieldTags.systemId, systemId)),
       )
       .orderBy(asc(fieldTags.createdAt), asc(fieldTags.name));
   }
 
   async createFieldTag(
     userId: string,
-    journeyId: string,
+    systemId: string,
     dto: CreateTagDto,
   ): Promise<FieldTag> {
-    await this.journeysService.ensureOwner(userId, journeyId);
+    await this.systemsService.ensureOwner(userId, systemId);
     const slug = slugify(dto.name);
-    const taken = (await this.findFieldTags(userId, journeyId)).some(
+    const taken = (await this.findFieldTags(userId, systemId)).some(
       (tag) => tag.slug === slug,
     );
 
@@ -107,7 +107,7 @@ export class TagsService {
 
     const [tag] = await this.db
       .insert(fieldTags)
-      .values({ ...dto, slug, journeyId })
+      .values({ ...dto, slug, systemId })
       .returning();
     return tag;
   }

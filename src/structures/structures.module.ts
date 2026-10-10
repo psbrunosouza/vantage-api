@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { JourneysModule } from '../journeys/journeys.module.js';
+import { SystemsModule } from '../systems/systems.module.js';
 import { StructuresController } from './structures.controller.js';
 import { StructuresService } from './structures.service.js';
 
 @Module({
-  imports: [JourneysModule],
+  imports: [SystemsModule],
   controllers: [StructuresController],
   providers: [StructuresService],
   exports: [StructuresService],

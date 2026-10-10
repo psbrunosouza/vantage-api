@@ -10,58 +10,58 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AvatarService } from '../avatar/avatar.service.js';
 import { DATABASE } from '../database/database.module.js';
 import type { ImageFile } from '../storage/image-storage.service.js';
-import type { CreateJourneyDto } from './dto/create-journey.dto.js';
-import type { UpdateJourneyDto } from './dto/update-journey.dto.js';
-import { type Journey, journeyMembers, journeys } from './journeys.schema.js';
+import type { CreateSystemDto } from './dto/create-system.dto.js';
+import type { UpdateSystemDto } from './dto/update-system.dto.js';
+import { type System, systemMembers, systems } from './systems.schema.js';
 import { pickMemberColor } from './member-colors.js';
 
 type Transaction = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
 
 @Injectable()
-export class JourneysService {
+export class SystemsService {
   constructor(
     @Inject(DATABASE) private readonly db: NodePgDatabase,
     private readonly avatarService: AvatarService,
   ) {}
 
-  findAll(userId: string): Promise<Journey[]> {
+  findAll(userId: string): Promise<System[]> {
     return this.db
       .select()
-      .from(journeys)
+      .from(systems)
       .where(this.visibleTo(userId))
-      .orderBy(asc(journeys.createdAt));
+      .orderBy(asc(systems.createdAt));
   }
 
-  async create(ownerId: string, dto: CreateJourneyDto): Promise<Journey> {
+  async create(ownerId: string, dto: CreateSystemDto): Promise<System> {
     return this.db.transaction((tx) => this.insert(tx, ownerId, dto));
   }
 
   async insert(
     tx: Transaction,
     ownerId: string,
-    dto: CreateJourneyDto,
-  ): Promise<Journey> {
-    const [journey] = await tx
-      .insert(journeys)
+    dto: CreateSystemDto,
+  ): Promise<System> {
+    const [system] = await tx
+      .insert(systems)
       .values({
         ...dto,
         ownerId,
         narratorId: dto.aiNarrator ? null : ownerId,
       })
       .returning();
-    await tx.insert(journeyMembers).values({
-      journeyId: journey.id,
+    await tx.insert(systemMembers).values({
+      systemId: system.id,
       userId: ownerId,
       color: pickMemberColor([]),
     });
-    return journey;
+    return system;
   }
 
   async update(
     userId: string,
     id: string,
-    dto: UpdateJourneyDto,
-  ): Promise<Journey> {
+    dto: UpdateSystemDto,
+  ): Promise<System> {
     await this.ensureOwner(userId, id);
 
     if (dto.narratorId && dto.aiNarrator) {
@@ -73,25 +73,25 @@ export class JourneysService {
 
     if (dto.narratorId) {
       const [member] = await this.db
-        .select({ userId: journeyMembers.userId })
-        .from(journeyMembers)
+        .select({ userId: systemMembers.userId })
+        .from(systemMembers)
         .where(
           and(
-            eq(journeyMembers.journeyId, id),
-            eq(journeyMembers.userId, dto.narratorId),
+            eq(systemMembers.systemId, id),
+            eq(systemMembers.userId, dto.narratorId),
           ),
         );
 
       if (!member) {
         throw new BadRequestException({
           code: 'NARRATOR_NOT_MEMBER',
-          message: 'The narrator must be in the journey.',
+          message: 'The narrator must be in the system.',
         });
       }
     }
 
-    const [journey] = await this.db
-      .update(journeys)
+    const [system] = await this.db
+      .update(systems)
       .set({
         ...dto,
         ...(dto.aiNarrator ? { narratorId: null } : {}),
@@ -100,9 +100,9 @@ export class JourneysService {
           : {}),
         ...(dto.narratorId ? { aiNarrator: false } : {}),
       })
-      .where(eq(journeys.id, id))
+      .where(eq(systems.id, id))
       .returning();
-    return journey;
+    return system;
   }
 
   async replaceAvatar(
@@ -112,72 +112,72 @@ export class JourneysService {
   ): Promise<{ avatarUrl: string }> {
     await this.ensureOwner(userId, id);
     const avatarUrl = await this.avatarService.replace(
-      `journeys/${id}`,
+      `systems/${id}`,
       file,
       (url) =>
         this.db
-          .update(journeys)
+          .update(systems)
           .set({ avatarUrl: url })
-          .where(eq(journeys.id, id)),
+          .where(eq(systems.id, id)),
     );
     return { avatarUrl };
   }
 
   async remove(userId: string, id: string): Promise<void> {
     await this.ensureOwner(userId, id);
-    await this.db.delete(journeys).where(eq(journeys.id, id));
+    await this.db.delete(systems).where(eq(systems.id, id));
   }
 
-  async findOne(userId: string, id: string): Promise<Journey> {
-    const [journey] = await this.db
+  async findOne(userId: string, id: string): Promise<System> {
+    const [system] = await this.db
       .select()
-      .from(journeys)
-      .where(and(eq(journeys.id, id), this.visibleTo(userId)));
+      .from(systems)
+      .where(and(eq(systems.id, id), this.visibleTo(userId)));
 
-    if (!journey)
+    if (!system)
       throw new NotFoundException({
-        code: 'JOURNEY_NOT_FOUND',
-        message: 'Journey not found.',
+        code: 'SYSTEM_NOT_FOUND',
+        message: 'System not found.',
       });
-    return journey;
+    return system;
   }
 
   async ensureVisible(
     userId: string,
     id: string,
   ): Promise<{ ownerId: string; narratorId: string | null }> {
-    const [journey] = await this.db
-      .select({ ownerId: journeys.ownerId, narratorId: journeys.narratorId })
-      .from(journeys)
-      .where(and(eq(journeys.id, id), this.visibleTo(userId)));
+    const [system] = await this.db
+      .select({ ownerId: systems.ownerId, narratorId: systems.narratorId })
+      .from(systems)
+      .where(and(eq(systems.id, id), this.visibleTo(userId)));
 
-    if (!journey)
+    if (!system)
       throw new NotFoundException({
-        code: 'JOURNEY_NOT_FOUND',
-        message: 'Journey not found.',
+        code: 'SYSTEM_NOT_FOUND',
+        message: 'System not found.',
       });
-    return journey;
+    return system;
   }
 
   async ensureOwner(userId: string, id: string): Promise<void> {
-    const journey = await this.ensureVisible(userId, id);
-    if (journey.ownerId !== userId) {
+    const system = await this.ensureVisible(userId, id);
+    if (system.ownerId !== userId) {
       throw new ForbiddenException({
         code: 'OWNER_ONLY',
-        message: 'Only the owner can change this journey.',
+        message: 'Only the owner can change this system.',
       });
     }
   }
 
   private visibleTo(userId: string) {
     return or(
-      eq(journeys.ownerId, userId),
+      eq(systems.ownerId, userId),
       inArray(
-        journeys.id,
+        systems.id,
         this.db
-          .select({ journeyId: journeyMembers.journeyId })
-          .from(journeyMembers)
-          .where(eq(journeyMembers.userId, userId)),
+          .select({ systemId: systemMembers.systemId })
+          .from(systemMembers)
+          .where(eq(systemMembers.userId, userId)),
       ),
     );
   }

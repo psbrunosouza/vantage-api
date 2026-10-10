@@ -14,18 +14,18 @@ export interface CharactersSource {
 export function listCharactersTool(
   source: CharactersSource,
   userId: string,
-  journeyId: string,
+  systemId: string,
 ): AiTool {
   return aiTool({
     name: 'list_characters',
     description:
-      'Lists the player characters of the journey with their ids and the player who controls each one.',
+      'Lists the player characters of the system with their ids and the player who controls each one.',
     input: z.object({}),
     run: async () => {
       const [structures, resources, members] = await Promise.all([
-        source.structures.findAll(userId, journeyId),
-        source.resources.findAll(userId, journeyId),
-        source.members.findAll(userId, journeyId),
+        source.structures.findAll(userId, systemId),
+        source.resources.findAll(userId, systemId),
+        source.members.findAll(userId, systemId),
       ]);
       const actorIds = new Set(
         structures.filter(isActorStructure).map((structure) => structure.id),

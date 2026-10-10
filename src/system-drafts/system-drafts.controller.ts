@@ -37,8 +37,8 @@ export class SystemDraftsController {
   @Get('tags')
   async systemTags() {
     const [structureTags, fieldTags] = await Promise.all([
-      this.tagsService.findSystemStructureTags(),
-      this.tagsService.findSystemFieldTags(),
+      this.tagsService.findGlobalStructureTags(),
+      this.tagsService.findGlobalFieldTags(),
     ]);
     return { structureTags, fieldTags };
   }

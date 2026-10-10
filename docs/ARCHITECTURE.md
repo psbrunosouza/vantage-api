@@ -77,37 +77,46 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 ## Imagens
 
 - `ImageStorageService.replace(bucket, pasta, arquivo, persist?)`: sobe, persiste URL, apaga anteriores da pasta. PNG, JPEG ou WebP, até 2 MB.
-- Bucket `avatars`: usuário em `<userId>/` (`POST /api/avatar`), journey em `journeys/<journeyId>/` (`POST /api/journeys/:id/avatar`).
-- Bucket `images`: field image em `<journeyId>/<resourceId>/<fieldId>/`. Upload só devolve URL; valor salvo pelo autosave do resource.
+- Bucket `avatars`: usuário em `<userId>/` (`POST /api/avatar`), system em `systems/<systemId>/` (`POST /api/systems/:id/avatar`).
+- Bucket `images`: field image em `<systemId>/<resourceId>/<fieldId>/`. Upload só devolve URL; valor salvo pelo autosave do resource.
 
-## Journeys
+## Systems
 
-- `journeys` = Journey (conceito do produto). Dono em `owner_id`.
-- `journey_members` = pessoas da journey, dono incluso (entra na criação). PK `(journey_id, user_id)`. `color` = hue sorteada ao entrar (`pickMemberColor`, prioriza livres entre as 8 de `member-colors.ts`).
-- Usuário vê journey se é dono ou participante. Fora disso → `404`.
+- `systems` = System (conceito do produto). Dono em `owner_id`.
+- `system_members` = pessoas da system, dono incluso (entra na criação). PK `(system_id, user_id)`. `color` = hue sorteada ao entrar (`pickMemberColor`, prioriza livres entre as 8 de `member-colors.ts`).
+- Usuário vê system se é dono ou participante. Fora disso → `404`.
 - `PATCH`/`DELETE`/`POST :id/avatar` só dono. Participante → `403`.
-- `journeys.icon` = id do ícone (catálogo do front), opcional. `initials` continua obrigatória.
-- `journeys.narrator_id` = único narrador (coluna única garante 1). Nasce = dono (ou `null` se criada com `aiNarrator: true`). `PATCH` com `narratorId` (só dono): precisa estar em `journey_members`, senão `400`; `null` = sem narrador.
-- `journeys.ai_narrator` = a IA narra (paga com a key do dono). `PATCH` com `aiNarrator: true` zera `narrator_id`; `aiNarrator: false` sem `narratorId` põe o dono como narrador; `narratorId` preenchido desliga `ai_narrator`; os dois juntos → `400`.
-- Entrada de participante: por convite (`invites/`). `journeys.invite_code` (unique, nulo até o dono pedir) = código do link.
-  - `POST /api/journeys/:journeyId/invite` (só dono) → `{ code }`; cria na primeira chamada, depois devolve o mesmo.
-  - `GET /api/invites/:code` → prévia (`journeyId`, `name`, `initials`, `icon`, `color`, `avatarUrl`, `ownerName`, `member`). Código inexistente → `404`.
-  - `POST /api/invites/:code/accept` → entra em `journey_members` com cor de `pickMemberColor` (idempotente) e devolve a journey.
+- `systems.icon` = id do ícone (catálogo do front), opcional. `initials` continua obrigatória.
+- `systems.narrator_id` = único narrador (coluna única garante 1). Nasce = dono (ou `null` se criada com `aiNarrator: true`). `PATCH` com `narratorId` (só dono): precisa estar em `system_members`, senão `400`; `null` = sem narrador.
+- `systems.ai_narrator` = a IA narra (paga com a key do dono). `PATCH` com `aiNarrator: true` zera `narrator_id`; `aiNarrator: false` sem `narratorId` põe o dono como narrador; `narratorId` preenchido desliga `ai_narrator`; os dois juntos → `400`.
+- Entrada de participante: por convite (`invites/`). `systems.invite_code` (unique, nulo até o dono pedir) = código do link.
+  - `POST /api/systems/:systemId/invite` (só dono) → `{ code }`; cria na primeira chamada, depois devolve o mesmo.
+  - `GET /api/invites/:code` → prévia (`systemId`, `name`, `initials`, `icon`, `color`, `avatarUrl`, `ownerName`, `member`). Código inexistente → `404`.
+  - `POST /api/invites/:code/accept` → entra em `system_members` com cor de `pickMemberColor` (idempotente) e devolve a system.
+
+## System drafts
+
+- `system_drafts` = sistema em montagem no onboarding. Nada vai para as tabelas reais até o commit. Dono em `owner_id`; vários incompletos por usuário.
+- `status`: `incomplete` | `complete`. `system_id` preenchido no commit.
+- Seções em `jsonb`: `progress` (estado do front para retomar), `system`, `options` (3 campanhas `{ option, world }`), `structure_tags`, `field_tags`, `structures`, `resources`, `hooks`, `questions`, `character`. Ids de estruturas, registros e tags já são uuid e entram iguais no commit.
+- Rotas em `/api/system-drafts`: `GET` (incompletos), `GET tags` (tags globais), `GET/PATCH/DELETE :id`, `POST` (cria), `POST :id/commit` (transação: system + membro dono, tags, estruturas + links, registros, personagem, sessão zero; marca `complete`).
+- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, cada uma com estruturas e povoamento, grava `options`), `structures`, `population`, `session-zero/questions`, `character-options`, `character-draft`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
+- Chamadas ao OpenRouter: no máximo 8 simultâneas por key (`KeyedLimiter`), resto em fila.
 
 ## Structures
 
-- `structures` = modelo. Pertence a uma journey (`journey_id`, cascade). Fields em `fields` (`jsonb`): tipo, label, posição no grid, options e config. Compartilhado por todos os resources dela.
-- Rotas em `/api/journeys/:journeyId/structures`. Leitura: quem vê a journey. Escrita: só dono.
-- `capability` (`text`, `STRUCTURE_CAPABILITIES`: `actor`; `null` = nenhuma). Structure `actor` = fichas jogáveis da journey; todas as fichas dela são actors. Máximo 1 por journey (`structures_actor_unique`, índice único parcial). `POST`/`PATCH` com `actor` tira a marca da anterior na mesma transação; sair de `actor` remove o controle (`member_resources`) das fichas dela.
+- `structures` = modelo. Pertence a uma system (`system_id`, cascade). Fields em `fields` (`jsonb`): tipo, label, posição no grid, options e config. Compartilhado por todos os resources dela.
+- Rotas em `/api/systems/:systemId/structures`. Leitura: quem vê a system. Escrita: só dono.
+- `capability` (`text`, `STRUCTURE_CAPABILITIES`: `actor`; `null` = nenhuma). Structure `actor` = fichas jogáveis da system; todas as fichas dela são actors. Máximo 1 por system (`structures_actor_unique`, índice único parcial). `POST`/`PATCH` com `actor` tira a marca da anterior na mesma transação; sair de `actor` remove o controle (`member_resources`) das fichas dela.
 - `fields`: Zod valida só campos base (`id`, `type`, `label`, `column`, `row`, `span`, `rows`, `options`). Config de cada tipo passa sem checagem.
 - `PATCH` de `fields` não apaga nada: permite undo/redo no edit do front.
-- `POST /api/journeys/:journeyId/structures/:id/prune` (só dono, `204`): apaga dos resources da structure valores de field inexistente e links de field/coluna removida ou com target trocado. Front chama ao sair do edit.
+- `POST /api/systems/:systemId/structures/:id/prune` (só dono, `204`): apaga dos resources da structure valores de field inexistente e links de field/coluna removida ou com target trocado. Front chama ao sair do edit.
 
 ## Resources
 
 - `resources` = objeto real. Pertence a uma structure (`structure_id`, cascade). Valores em `values` (`jsonb`), chave = id do field.
-- Rotas: `GET /api/journeys/:journeyId/resources`, `POST /api/journeys/:journeyId/structures/:structureId/resources`, `PATCH /api/journeys/:journeyId/resources/:id`, `POST /api/journeys/:journeyId/resources/:id/fields/:fieldId/image`.
-- Leitura: quem vê a journey. Criar: só dono. `PATCH` e imagem: dono ou quem controla a ficha (`MembersService.ensureEditor`).
+- Rotas: `GET /api/systems/:systemId/resources`, `POST /api/systems/:systemId/structures/:structureId/resources`, `PATCH /api/systems/:systemId/resources/:id`, `POST /api/systems/:systemId/resources/:id/fields/:fieldId/image`.
+- Leitura: quem vê a system. Criar: só dono. `PATCH` e imagem: dono ou quem controla a ficha (`MembersService.ensureEditor`).
 - `values` validado por Zod montado dos fields da structure (`resource-values.ts`, tipo por `type`). Chave de field inexistente ou sem valor (section, separator) é descartada. `PATCH` substitui `values` inteiro.
 
 ## Links
@@ -116,28 +125,28 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Célula Relation de table: `row_id` + `column_id` preenchidos. Linhas e células próprias da table seguem em `values`; célula Relation vive só em `links`.
 - Coluna Relation (config em `fields`): `relation.structureId`, `targets` (`one` = 1 por célula) e `sources` (`one` = target em 1 célula só, entre todos os resources).
 - Choice/boxes em modo relation (config `chips.relation.structureId`): `row_id` e `column_id` nulos. Seleção vive só em `links`. Choice = 1 target, boxes = vários. Sem restrição de `sources`.
-- Rotas: `GET /api/journeys/:journeyId/links` (todos da journey), `PUT /api/journeys/:journeyId/resources/:id/links` (`{ fieldId, rowId, columnId, targetIds }` substitui a seleção; `rowId`/`columnId` juntos, ambos `null` para choice/boxes). Leitura: quem vê a journey. Escrita: dono ou quem controla o resource de origem.
-- `PUT` valida relation existente, linha existente em `values` (table), target na structure da relation e na journey, cardinalidade (`400`/`409`).
+- Rotas: `GET /api/systems/:systemId/links` (todos da system), `PUT /api/systems/:systemId/resources/:id/links` (`{ fieldId, rowId, columnId, targetIds }` substitui a seleção; `rowId`/`columnId` juntos, ambos `null` para choice/boxes). Leitura: quem vê a system. Escrita: dono ou quem controla o resource de origem.
+- `PUT` valida relation existente, linha existente em `values` (table), target na structure da relation e na system, cardinalidade (`400`/`409`).
 - Limpeza: `PATCH` de `values` apaga, na mesma transação, links de linha removida (só tables existentes na structure). Links de field/coluna removida ou com target trocado saem no `prune` da structure.
 
 ## Members
 
-- `member_resources` = fichas que cada pessoa controla. PK `resource_id` (1 ficha = 1 pessoa). FK `(journey_id, user_id)` → `journey_members` (`member_resources_member_fk`, cascade); `resource_id` → `resources` (cascade). Só fichas da structure `actor` (`PUT` com outra → `400`).
-- Rotas em `/api/journeys/:journeyId/members`: `GET` (pessoas com `name`, `image`, `color`, `resourceIds`), `PUT :userId/resources` (`{ resourceIds }` substitui a lista). Leitura: quem vê a journey.
-- `PUT`: a própria lista, ou de qualquer um se dono/narrador (senão `403`). Resource fora da journey → `404`. Ficha de outra pessoa → `409`.
+- `member_resources` = fichas que cada pessoa controla. PK `resource_id` (1 ficha = 1 pessoa). FK `(system_id, user_id)` → `system_members` (`member_resources_member_fk`, cascade); `resource_id` → `resources` (cascade). Só fichas da structure `actor` (`PUT` com outra → `400`).
+- Rotas em `/api/systems/:systemId/members`: `GET` (pessoas com `name`, `image`, `color`, `resourceIds`), `PUT :userId/resources` (`{ resourceIds }` substitui a lista). Leitura: quem vê a system.
+- `PUT`: a própria lista, ou de qualquer um se dono/narrador (senão `403`). Resource fora da system → `404`. Ficha de outra pessoa → `409`.
 - Edição por ficha: dono edita tudo (estrutura e valores). Quem controla a ficha edita só ela: `PATCH` do resource, imagem e links. Estrutura continua só dono.
 
 ## Play sessions
 
-- `session_folders` = pasta de sessões. Pertence a uma journey (cascade). 1 nível: pasta não contém pasta.
-- `play_sessions` = sessão de jogo (chat). Pertence a uma journey (cascade). `folder_id` nulo = raiz; pasta apagada → `set null`. Nome `play_sessions` porque `sessions` é do Better Auth.
+- `session_folders` = pasta de sessões. Pertence a uma system (cascade). 1 nível: pasta não contém pasta.
+- `play_sessions` = sessão de jogo (chat). Pertence a uma system (cascade). `folder_id` nulo = raiz; pasta apagada → `set null`. Nome `play_sessions` porque `sessions` é do Better Auth.
 - `position`: pastas e sessões soltas dividem a ordem da raiz; sessões de pasta têm ordem própria dentro dela.
-- Rotas em `/api/journeys/:journeyId/`: `GET session-tree` (`{ folders, sessions }` ordenados por `position`), `PUT session-tree` (`{ items }`: layout inteiro), `POST session-folders` (`{ name }`), `PATCH session-folders/:id`, `DELETE session-folders/:id`, `POST play-sessions` (`{ folderId? }`: pasta da journey, senão `404`; entra no topo da pasta ou da raiz), `PATCH play-sessions/:id` (`{ title }`), `DELETE play-sessions/:id`. Leitura: quem vê a journey. Escrita: só dono.
-- `DELETE session-folders/:id` apaga a pasta e as sessões dentro dela, numa transação. `DELETE play-sessions/:id` apaga a sessão. Entradas das sessões apagadas vão junto (cascade). Fora da journey → `404`.
-- Criação (pasta ou sessão) entra no topo da raiz (`min(position) - 1`). Sessão nasce `Session N` (N = total da journey + 1).
-- `PUT session-tree`: `items` lista cada pasta (com `sessionIds`) e cada sessão solta da journey exatamente uma vez, senão `400`. Atualiza só o que mudou, numa transação.
+- Rotas em `/api/systems/:systemId/`: `GET session-tree` (`{ folders, sessions }` ordenados por `position`), `PUT session-tree` (`{ items }`: layout inteiro), `POST session-folders` (`{ name }`), `PATCH session-folders/:id`, `DELETE session-folders/:id`, `POST play-sessions` (`{ folderId? }`: pasta da system, senão `404`; entra no topo da pasta ou da raiz), `PATCH play-sessions/:id` (`{ title }`), `DELETE play-sessions/:id`. Leitura: quem vê a system. Escrita: só dono.
+- `DELETE session-folders/:id` apaga a pasta e as sessões dentro dela, numa transação. `DELETE play-sessions/:id` apaga a sessão. Entradas das sessões apagadas vão junto (cascade). Fora da system → `404`.
+- Criação (pasta ou sessão) entra no topo da raiz (`min(position) - 1`). Sessão nasce `Session N` (N = total da system + 1).
+- `PUT session-tree`: `items` lista cada pasta (com `sessionIds`) e cada sessão solta da system exatamente uma vez, senão `400`. Atualiza só o que mudou, numa transação.
 - `session_entries` = itens do chat da sessão, em ordem de `created_at`. `kind` (`narrator` | `player`, a voz), `source` (`user` | `ai`, quem escreveu; padrão `user`), `user_id` (quem escreveu, `set null`; nulo na IA), `resource_id` (ficha que falou, `set null`), `data` (`jsonb`, formato por `kind`; hoje `{ text, name? }`). Texto e nome da ficha gravados como estavam no envio.
-- Rotas: `GET`/`POST play-sessions/:sessionId/entries`. Leitura: quem vê a journey. `POST`: `{ kind: 'narrator', text }` só o narrador; `{ kind: 'player', resourceId, text }` só quem controla a ficha, que precisa ser da structure `actor` (senão `403`). Sessão fora da journey → `404`. Sem realtime.
+- Rotas: `GET`/`POST play-sessions/:sessionId/entries`. Leitura: quem vê a system. `POST`: `{ kind: 'narrator', text }` só o narrador; `{ kind: 'player', resourceId, text }` só quem controla a ficha, que precisa ser da structure `actor` (senão `403`). Sessão fora da system → `404`. Sem realtime.
 
 ## IA
 
@@ -150,28 +159,28 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `OpenRouterClient.chat` = chat completions (formato OpenAI, `tools`, `tool_choice`). `401` → `400` (key recusada), `402` → `400` (sem créditos), `429` → `429`, resto → `502` com a mensagem da OpenRouter.
 - `AgentRunner`: `reply` (loop de tools, máx. 6 passos; o último força `tool_choice: 'none'`) e `submit` (saída estruturada: obriga a chamar uma tool cujo input é o resultado, validado por Zod; inválido volta pra IA com o erro, máx. 3 tentativas). Erro de Zod ou `HttpException` numa tool volta pra IA; outro erro sobe.
 - Tools (`ai/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
-- `journey-context.ts`: journey, structures, campanha e ficha em texto compacto (label, nunca id).
+- `system-context.ts`: system, structures, campanha e ficha em texto compacto (label, nunca id).
 - Flows (`ai/flows/`):
-  - `POST /api/ai/system-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem journey. Não salva.
-- Flows em `/api/ai/journeys/:journeyId/`:
-  - `POST campaign-start` → IA cria campanha local no mundo da journey (contexto: journey + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
-  - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Contexto: journey (nome, descrição, structures). Exige structure de actors (`400`). Não salva.
-  - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Contexto: journey. Exige structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
+  - `POST /api/ai/campaign-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem system. Não salva.
+- Flows em `/api/ai/systems/:systemId/`:
+  - `POST campaign-start` → IA cria campanha local no mundo da system (contexto: system + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
+  - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Contexto: system (nome, descrição, structures). Exige structure de actors (`400`). Não salva.
+  - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Contexto: system. Exige structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.
 
 ## Campaigns
 
-- `campaigns` = campanha da journey. `journey_id` unique (1 por journey, cascade). `title`, `premise`, `brief` (`jsonb`, `campaignBriefSchema`: `opening`, `setting`, `culture`, `politics`, `tone`, `localTheme`, `hook`, `problem`, `escalation`, `complications[]`, `npcs[{ name, role, description }]`).
-- Rotas em `/api/journeys/:journeyId/campaign`: `GET` (campanha ou `null`, quem vê a journey), `POST` (só dono; já existe → `409`), `PUT` (só dono; cria ou substitui).
+- `campaigns` = campanha da system. `system_id` unique (1 por system, cascade). `title`, `premise`, `brief` (`jsonb`, `campaignBriefSchema`: `opening`, `setting`, `culture`, `politics`, `tone`, `localTheme`, `hook`, `problem`, `escalation`, `complications[]`, `npcs[{ name, role, description }]`).
+- Rotas em `/api/systems/:systemId/campaign`: `GET` (campanha ou `null`, quem vê a system), `POST` (só dono; já existe → `409`), `PUT` (só dono; cria ou substitui).
 
 ## Characters
 
-- `POST /api/journeys/:journeyId/characters` (`{ name, fields, values }`, só dono): numa transação adiciona `fields` novos à structure de actors (ids novos, senão `400`), cria a ficha com `values` validados e põe o dono no controle (`member_resources`). Sem structure de actors → `400`.
+- `POST /api/systems/:systemId/characters` (`{ name, fields, values }`, só dono): numa transação adiciona `fields` novos à structure de actors (ids novos, senão `400`), cria a ficha com `values` validados e põe o dono no controle (`member_resources`). Sem structure de actors → `400`.
 
 ## Catálogos
 
 - `field_types` = tipos de field (`id` = slug do tipo, `name`, `icon`, `description`, `position`). `GET /api/fields` ordenado por `position`.
-- `templates` = templates de journey (`id` slug, `name`, `summary`, `icon`, `color`, `position`). `template_categories` = categorias do template (PK `(template_id, position)`, `name`, `icon`, cascade).
+- `templates` = templates de system (`id` slug, `name`, `summary`, `icon`, `color`, `position`). `template_categories` = categorias do template (PK `(template_id, position)`, `name`, `icon`, cascade).
 - `GET /api/templates` → templates ordenados por `position`, cada um com `categories: [{ name, icon }]`.
 - Só leitura. Dados vêm de `src/database/seed.ts`: upsert por `id`, categorias recriadas.
 - Catálogo estático (prefixo `catalog_`, só seed escreve, sem rota; leitura via `CatalogService`): `catalog_themes` (`id` identity, `name` unique), `catalog_species` (`id` do arquivo, `name`, `category`), `catalog_species_themes` (PK `(species_id, theme_id)`, cascade nos dois, índice em `theme_id`).
@@ -179,4 +188,4 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 
 ## Contrato
 
-- No backend: auth, avatar, journeys, invites, members, structures, resources, links, play sessions, campaigns, ai, fields, templates. Frontend não usa mock.
+- No backend: auth, avatar, systems, invites, members, structures, resources, links, play sessions, campaigns, ai, fields, templates. Frontend não usa mock.

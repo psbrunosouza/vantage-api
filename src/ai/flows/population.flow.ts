@@ -10,9 +10,9 @@ import { keysOf, valuesById, valuesSchemaOf } from '../field-values.js';
 import {
   describeCampaign,
   describeFields,
-  describeJourney,
+  describeSystem,
   fillableFields,
-} from '../journey-context.js';
+} from '../system-context.js';
 import type {
   WorldFieldTag,
   WorldResource,
@@ -27,18 +27,18 @@ const HOOKS = 3;
 const PROMPT = [
   'You populate the world of a solo tabletop RPG played in Vantage.',
   'A record is one sheet of a structure: a named character, group, place, item or document of the world.',
-  'Records must come from the campaign and fit the other records of the journey. Mention names that the campaign already gives.',
+  'Records must come from the campaign and fit the other records of the system. Mention names that the campaign already gives.',
   'Make them concrete: players must be able to visit, fight, steal, talk to or use each one.',
   'Never repeat a record that already exists. Never create player characters.',
   'Fill every field. Numbers must be balanced for the start of the campaign.',
-  'Write in the language of the journey.',
+  'Write in the language of the system.',
 ].join('\n');
 
 const HOOKS_PROMPT = [
   'You write loose story hooks for a tabletop RPG played in Vantage.',
   `Write ${HOOKS} hooks. Each one is a short question or rumor, at most 20 words, that ties two or more records together and gives the players something to chase.`,
   'List the exact names of the records each hook mentions.',
-  'Write in the language of the journey.',
+  'Write in the language of the system.',
 ].join('\n');
 
 export interface Hook {
@@ -111,10 +111,10 @@ export class PopulationFlow {
     source: WorldSource,
     dto: PopulationDto,
   ): Promise<Population> {
-    const [credentials, journey, campaign, structures, resources, fieldTags] =
+    const [credentials, system, campaign, structures, resources, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId),
-        source.journey(),
+        source.system(),
         source.campaign(),
         source.structures(),
         source.resources(),
@@ -123,7 +123,7 @@ export class PopulationFlow {
 
     const world = worldOf(structures);
     const context = [
-      describeJourney(journey, structures, fieldTags),
+      describeSystem(system, structures, fieldTags),
       campaign ? describeCampaign(campaign) : null,
       describeRecords(world, resources),
     ]

@@ -9,12 +9,12 @@ import { InvitesService } from './invites.service.js';
 export class InvitesController {
   constructor(private readonly invitesService: InvitesService) {}
 
-  @Post('journeys/:journeyId/invite')
+  @Post('systems/:systemId/invite')
   codeOf(
     @Session() session: UserSession<Auth>,
-    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+    @Param('systemId', ParseUUIDPipe) systemId: string,
   ) {
-    return this.invitesService.codeOf(session.user.id, journeyId);
+    return this.invitesService.codeOf(session.user.id, systemId);
   }
 
   @Get('invites/:code')

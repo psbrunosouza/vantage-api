@@ -5,7 +5,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { journeyMembers } from '../journeys/journeys.schema.js';
+import { systemMembers } from '../systems/systems.schema.js';
 import { resources } from '../resources/resources.schema.js';
 
 export const memberResources = pgTable(
@@ -14,7 +14,7 @@ export const memberResources = pgTable(
     resourceId: uuid('resource_id')
       .primaryKey()
       .references(() => resources.id, { onDelete: 'cascade' }),
-    journeyId: uuid('journey_id').notNull(),
+    systemId: uuid('system_id').notNull(),
     userId: uuid('user_id').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -23,9 +23,9 @@ export const memberResources = pgTable(
   (table) => [
     foreignKey({
       name: 'member_resources_member_fk',
-      columns: [table.journeyId, table.userId],
-      foreignColumns: [journeyMembers.journeyId, journeyMembers.userId],
+      columns: [table.systemId, table.userId],
+      foreignColumns: [systemMembers.systemId, systemMembers.userId],
     }).onDelete('cascade'),
-    index().on(table.journeyId, table.userId),
+    index().on(table.systemId, table.userId),
   ],
 );
