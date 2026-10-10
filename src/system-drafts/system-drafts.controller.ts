@@ -18,16 +18,29 @@ import {
   type SystemDraftDto,
   systemDraftSchema,
 } from './dto/system-draft.dto.js';
+import { TagsService } from '../tags/tags.service.js';
 import { SystemDraftsService } from './system-drafts.service.js';
 
 @ApiTags('system-drafts')
 @Controller('system-drafts')
 export class SystemDraftsController {
-  constructor(private readonly systemDraftsService: SystemDraftsService) {}
+  constructor(
+    private readonly systemDraftsService: SystemDraftsService,
+    private readonly tagsService: TagsService,
+  ) {}
 
   @Get()
   findIncomplete(@Session() session: UserSession<Auth>) {
     return this.systemDraftsService.findIncomplete(session.user.id);
+  }
+
+  @Get('tags')
+  async systemTags() {
+    const [structureTags, fieldTags] = await Promise.all([
+      this.tagsService.findSystemStructureTags(),
+      this.tagsService.findSystemFieldTags(),
+    ]);
+    return { structureTags, fieldTags };
   }
 
   @Get(':id')
