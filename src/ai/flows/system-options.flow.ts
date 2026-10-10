@@ -27,6 +27,7 @@ const PROMPT = [
   '"A maior corporação da cidade guarda num cofre orbital o único antídoto para a praga que ela mesma criou. Um velho hacker reúne os aventureiros para o assalto do século."',
   'For each campaign, also return its themes translated to Brazilian Portuguese, in the same order, and eight structures that fit its world. A structure groups sheets of one kind, such as places, factions or creatures, never player characters. Each structure name is a plural noun of one or two words.',
   'When there is a player direction, it takes priority over the theme sets.',
+  'When the theme sets repeat, make each campaign clearly different.',
   'Write everything in Brazilian Portuguese.',
 ].join('\n');
 
@@ -112,6 +113,21 @@ const OUTPUT = {
   }),
 };
 
+export function themeSets(chosen: string[], random: string[]): string[][] {
+  if (chosen.length > 0) {
+    return Array.from({ length: SETS }, () => chosen);
+  }
+
+  return Array.from({ length: SETS }, (_, index) =>
+    random.slice(
+      index * MAX_THEMES,
+      index * MAX_THEMES +
+        MIN_THEMES +
+        Math.floor(Math.random() * (MAX_THEMES - MIN_THEMES + 1)),
+    ),
+  );
+}
+
 @Injectable()
 export class SystemOptionsFlow {
   constructor(
@@ -121,18 +137,14 @@ export class SystemOptionsFlow {
   ) {}
 
   async run(userId: string, dto: SystemOptionsDto): Promise<SystemOption[]> {
-    const [credentials, themes] = await Promise.all([
+    const chosen = dto.themes ?? [];
+    const [credentials, random] = await Promise.all([
       this.aiService.credentialsOf(userId),
-      this.catalogService.randomThemes(SETS * MAX_THEMES),
+      chosen.length > 0
+        ? []
+        : this.catalogService.randomThemes(SETS * MAX_THEMES),
     ]);
-    const sets = Array.from({ length: SETS }, (_, index) =>
-      themes.slice(
-        index * MAX_THEMES,
-        index * MAX_THEMES +
-          MIN_THEMES +
-          Math.floor(Math.random() * (MAX_THEMES - MIN_THEMES + 1)),
-      ),
-    );
+    const sets = themeSets(chosen, random);
 
     const { campaigns } = await this.runner.submit(
       credentials,
