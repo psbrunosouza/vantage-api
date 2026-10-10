@@ -15,6 +15,8 @@ import type { UpdateJourneyDto } from './dto/update-journey.dto.js';
 import { type Journey, journeyMembers, journeys } from './journeys.schema.js';
 import { pickMemberColor } from './member-colors.js';
 
+type Transaction = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
+
 @Injectable()
 export class JourneysService {
   constructor(
@@ -31,22 +33,28 @@ export class JourneysService {
   }
 
   async create(ownerId: string, dto: CreateJourneyDto): Promise<Journey> {
-    return this.db.transaction(async (tx) => {
-      const [journey] = await tx
-        .insert(journeys)
-        .values({
-          ...dto,
-          ownerId,
-          narratorId: dto.aiNarrator ? null : ownerId,
-        })
-        .returning();
-      await tx.insert(journeyMembers).values({
-        journeyId: journey.id,
-        userId: ownerId,
-        color: pickMemberColor([]),
-      });
-      return journey;
+    return this.db.transaction((tx) => this.insert(tx, ownerId, dto));
+  }
+
+  async insert(
+    tx: Transaction,
+    ownerId: string,
+    dto: CreateJourneyDto,
+  ): Promise<Journey> {
+    const [journey] = await tx
+      .insert(journeys)
+      .values({
+        ...dto,
+        ownerId,
+        narratorId: dto.aiNarrator ? null : ownerId,
+      })
+      .returning();
+    await tx.insert(journeyMembers).values({
+      journeyId: journey.id,
+      userId: ownerId,
+      color: pickMemberColor([]),
     });
+    return journey;
   }
 
   async update(

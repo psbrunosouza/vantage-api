@@ -7,7 +7,7 @@ import type { CreateTagDto } from './dto/create-tag.dto.js';
 import { type FieldTag, fieldTags } from './field-tags.schema.js';
 import { type StructureTag, structureTags } from './structure-tags.schema.js';
 
-function slugify(name: string): string {
+export function slugify(name: string): string {
   return name
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -16,7 +16,7 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-const TAG_EXISTS = {
+export const TAG_EXISTS = {
   code: 'TAG_EXISTS',
   message: 'A tag with this name already exists.',
 };
