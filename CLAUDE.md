@@ -32,8 +32,9 @@
 
 ## Execução
 
-- Não rodar build, lint, test, serve, Docker, request HTTP, screenshot ou browser sem pedido explícito.
-- Implementar e parar. Usuário valida.
+- Mudou código → rodar build + testes antes do commit: `npm run build` e `npm test`. Quebrou → corrigir.
+- Reportar só falha (linha decisiva). Passou → uma linha.
+- Não rodar lint, serve, Docker, request HTTP, screenshot ou browser sem pedido explícito.
 
 ## Git
 

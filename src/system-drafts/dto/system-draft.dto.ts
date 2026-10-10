@@ -6,6 +6,8 @@ import { sessionZeroQuestionSchema } from '../../session-zero/dto/replace-questi
 import { createStructureSchema } from '../../structures/dto/create-structure.dto.js';
 import { createTagSchema } from '../../tags/dto/create-tag.dto.js';
 
+export const draftSystemSchema = createJourneySchema.partial();
+
 export const draftTagSchema = createTagSchema.extend({ id: z.uuid() });
 
 export const draftStructureSchema = createStructureSchema.extend({
@@ -39,7 +41,7 @@ export const draftOptionSchema = z.object({
 export const systemDraftSchema = z
   .object({
     progress: z.record(z.string(), z.unknown()),
-    system: createJourneySchema.partial(),
+    system: draftSystemSchema,
     options: z.array(draftOptionSchema),
     structureTags: z.array(draftTagSchema),
     fieldTags: z.array(draftTagSchema),
@@ -57,7 +59,7 @@ export type DraftResource = z.infer<typeof draftResourceSchema>;
 export type DraftHook = z.infer<typeof draftHookSchema>;
 export type DraftWorld = z.infer<typeof draftWorldSchema>;
 export type DraftOption = z.infer<typeof draftOptionSchema>;
-export type DraftSystem = z.infer<typeof systemDraftSchema.shape.system>;
+export type DraftSystem = z.infer<typeof draftSystemSchema>;
 export type DraftQuestion = z.infer<typeof sessionZeroQuestionSchema>;
 export type DraftCharacter = z.infer<typeof createCharacterSchema>;
 export type SystemDraftDto = z.infer<typeof systemDraftSchema>;

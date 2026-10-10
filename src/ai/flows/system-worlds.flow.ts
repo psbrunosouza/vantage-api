@@ -103,7 +103,9 @@ export class SystemWorldsFlow {
       structures: draftStructuresOf(proposals, actorsTagId),
     };
 
-    const { hooks } = await this.populationFlow.run(userId, source, {});
+    const { hooks } = await this.populationFlow.run(userId, source, {
+      replace: [],
+    });
 
     return { ...slot.world, hooks };
   }
