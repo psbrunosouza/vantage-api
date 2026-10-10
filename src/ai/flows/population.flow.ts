@@ -1,15 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CampaignsService } from '../../campaigns/campaigns.service.js';
-import { JourneysService } from '../../journeys/journeys.service.js';
 import type { Resource } from '../../resources/resources.schema.js';
-import { ResourcesService } from '../../resources/resources.service.js';
 import type { StructureField } from '../../structures/structure-field.js';
-import type { StructureView } from '../../structures/structure-view.js';
-import { StructuresService } from '../../structures/structures.service.js';
-import type { FieldTag } from '../../tags/field-tags.schema.js';
 import { isActorStructure } from '../../tags/actors.js';
-import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { type AiCredentials, AiService } from '../ai.service.js';
 import type { PopulationDto } from '../dto/population.dto.js';
@@ -20,6 +13,12 @@ import {
   describeJourney,
   fillableFields,
 } from '../journey-context.js';
+import type {
+  WorldFieldTag,
+  WorldResource,
+  WorldSource,
+  WorldStructure,
+} from '../world-source.js';
 
 const RECORDS = 4;
 const REQUESTED = 8;
@@ -48,39 +47,39 @@ export interface Hook {
 }
 
 export interface Population {
-  resources: Resource[];
+  resources: WorldResource[];
   hooks: Hook[];
 }
 
 interface RecordDraft {
-  structure: StructureView;
+  structure: WorldStructure;
   name: string;
   values: Record<string, unknown>;
 }
 
 interface Keyed {
-  structure: StructureView;
+  structure: WorldStructure;
   keyed: Map<string, StructureField>;
 }
 
-export function worldOf(structures: readonly StructureView[]): StructureView[] {
+export function worldOf(structures: readonly WorldStructure[]): WorldStructure[] {
   const players = structures.find(isActorStructure);
   return structures.filter((structure) => structure.id !== players?.id);
 }
 
 export function populationTargets(
-  structures: readonly StructureView[],
+  structures: readonly WorldStructure[],
   resources: readonly Pick<Resource, 'structureId'>[],
-): StructureView[] {
+): WorldStructure[] {
   const filled = new Set(resources.map((resource) => resource.structureId));
   return worldOf(structures).filter((structure) => !filled.has(structure.id));
 }
 
 export function replacements(
-  world: readonly StructureView[],
+  world: readonly WorldStructure[],
   resources: readonly Pick<Resource, 'id' | 'structureId'>[],
   ids: readonly string[],
-): { structure: StructureView; count: number; ids: string[] }[] {
+): { structure: WorldStructure; count: number; ids: string[] }[] {
   return world.flatMap((structure) => {
     const replaced = resources
       .filter(
@@ -99,29 +98,22 @@ export function replacements(
 export class PopulationFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
-    private readonly campaignsService: CampaignsService,
-    private readonly structuresService: StructuresService,
-    private readonly resourcesService: ResourcesService,
-    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
   async run(
     userId: string,
-    journeyId: string,
+    source: WorldSource,
     dto: PopulationDto,
   ): Promise<Population> {
-    await this.journeysService.ensureOwner(userId, journeyId);
-
     const [credentials, journey, campaign, structures, resources, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId),
-        this.journeysService.findOne(userId, journeyId),
-        this.campaignsService.find(userId, journeyId),
-        this.structuresService.findAll(userId, journeyId),
-        this.resourcesService.findAll(userId, journeyId),
-        this.tagsService.findFieldTags(userId, journeyId),
+        source.journey(),
+        source.campaign(),
+        source.structures(),
+        source.resources(),
+        source.fieldTags(),
       ]);
 
     const world = worldOf(structures);
@@ -152,23 +144,19 @@ export class PopulationFlow {
           )
         ).flat();
 
-    await this.resourcesService.removeMany(
-      userId,
-      journeyId,
+    const saved = await source.replaceResources(
       replaced.flatMap(({ ids }) => ids),
-    );
-
-    for (const draft of drafts) {
-      await this.resourcesService.create(userId, journeyId, draft.structure.id, {
+      drafts.map((draft) => ({
+        structureId: draft.structure.id,
         name: draft.name,
         values: draft.values,
-      });
-    }
+      })),
+    );
 
     const worldIds = new Set(world.map((structure) => structure.id));
-    const current = (
-      await this.resourcesService.findAll(userId, journeyId)
-    ).filter((resource) => worldIds.has(resource.structureId));
+    const current = saved.filter((resource) =>
+      worldIds.has(resource.structureId),
+    );
 
     return {
       resources: current,
@@ -179,8 +167,8 @@ export class PopulationFlow {
   private async draft(
     credentials: AiCredentials,
     context: string,
-    structure: StructureView,
-    fieldTags: readonly FieldTag[],
+    structure: WorldStructure,
+    fieldTags: readonly WorldFieldTag[],
     count: number,
   ): Promise<RecordDraft[]> {
     const keyed = keysOf(fillableFields(structure.fields));
@@ -224,8 +212,8 @@ export class PopulationFlow {
   private async request(
     credentials: AiCredentials,
     context: string,
-    world: readonly StructureView[],
-    fieldTags: readonly FieldTag[],
+    world: readonly WorldStructure[],
+    fieldTags: readonly WorldFieldTag[],
     request: string,
   ): Promise<RecordDraft[]> {
     const labeled = new Map<string, Keyed>();
@@ -315,8 +303,8 @@ export class PopulationFlow {
   private async hooks(
     credentials: AiCredentials,
     context: string,
-    world: readonly StructureView[],
-    resources: readonly Resource[],
+    world: readonly WorldStructure[],
+    resources: readonly WorldResource[],
   ): Promise<Hook[]> {
     if (resources.length < 2) {
       return [];
@@ -357,7 +345,7 @@ export class PopulationFlow {
 }
 
 function describeRecords(
-  world: readonly StructureView[],
+  world: readonly WorldStructure[],
   resources: readonly Pick<Resource, 'name' | 'structureId'>[],
 ): string {
   const lines = world.flatMap((structure) =>

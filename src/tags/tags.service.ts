@@ -45,6 +45,22 @@ export class TagsService {
       .orderBy(asc(structureTags.createdAt), asc(structureTags.name));
   }
 
+  findSystemStructureTags(): Promise<StructureTag[]> {
+    return this.db
+      .select()
+      .from(structureTags)
+      .where(isNull(structureTags.journeyId))
+      .orderBy(asc(structureTags.createdAt), asc(structureTags.name));
+  }
+
+  findSystemFieldTags(): Promise<FieldTag[]> {
+    return this.db
+      .select()
+      .from(fieldTags)
+      .where(isNull(fieldTags.journeyId))
+      .orderBy(asc(fieldTags.createdAt), asc(fieldTags.name));
+  }
+
   async createStructureTag(
     userId: string,
     journeyId: string,

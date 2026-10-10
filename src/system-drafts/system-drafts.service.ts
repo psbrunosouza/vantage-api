@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { createJourneySchema } from '../journeys/dto/create-journey.dto.js';
@@ -26,6 +26,7 @@ import {
 import { TAG_EXISTS, slugify } from '../tags/tags.service.js';
 import type {
   DraftStructure,
+  DraftWorld,
   SystemDraftDto,
 } from './dto/system-draft.dto.js';
 import {
@@ -90,7 +91,7 @@ export class SystemDraftsService {
     id: string,
     dto: SystemDraftDto,
   ): Promise<SystemDraft> {
-    await this.findIncompleteOne(ownerId, id);
+    await this.findOpen(ownerId, id);
 
     const [draft] = await this.db
       .update(systemDrafts)
@@ -106,7 +107,7 @@ export class SystemDraftsService {
   }
 
   async commit(ownerId: string, id: string): Promise<Journey> {
-    const draft = await this.findIncompleteOne(ownerId, id);
+    const draft = await this.findOpen(ownerId, id);
     const system = createJourneySchema.safeParse(draft.system);
 
     if (!system.success) {
@@ -271,7 +272,23 @@ export class SystemDraftsService {
     });
   }
 
-  private async findIncompleteOne(
+  async saveOptionWorld(
+    ownerId: string,
+    id: string,
+    index: number,
+    world: DraftWorld,
+  ): Promise<void> {
+    await this.findOpen(ownerId, id);
+    await this.db
+      .update(systemDrafts)
+      .set({
+        options: sql`jsonb_set(${systemDrafts.options}, ${`{${index},world}`}::text[], ${JSON.stringify(world)}::jsonb)`,
+        updatedAt: new Date(),
+      })
+      .where(this.ownedBy(ownerId, id));
+  }
+
+  async findOpen(
     ownerId: string,
     id: string,
   ): Promise<SystemDraft> {

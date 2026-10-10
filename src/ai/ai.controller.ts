@@ -40,6 +40,7 @@ import { PopulationFlow } from './flows/population.flow.js';
 import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
+import { WorldSources } from './world-source.js';
 
 @ApiTags('ai')
 @Controller('ai')
@@ -54,6 +55,7 @@ export class AiController {
     private readonly structureProposalsFlow: StructureProposalsFlow,
     private readonly populationFlow: PopulationFlow,
     private readonly sessionZeroQuestionsFlow: SessionZeroQuestionsFlow,
+    private readonly worldSources: WorldSources,
   ) {}
 
   @Get('models')
@@ -98,47 +100,111 @@ export class AiController {
   }
 
   @Post('journeys/:journeyId/structures')
-  structureProposals(
+  async structureProposals(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
     @Body(new ZodValidationPipe(structureProposalsSchema))
     dto: StructureProposalsDto,
   ) {
-    return this.structureProposalsFlow.run(session.user.id, journeyId, dto);
+    const userId = session.user.id;
+    const source = await this.worldSources.ofJourney(userId, journeyId);
+    return this.structureProposalsFlow.run(userId, source, dto);
+  }
+
+  @Post('system-drafts/:draftId/structures')
+  async draftStructureProposals(
+    @Session() session: UserSession<Auth>,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body(new ZodValidationPipe(structureProposalsSchema))
+    dto: StructureProposalsDto,
+  ) {
+    const userId = session.user.id;
+    const source = await this.worldSources.ofDraft(userId, draftId);
+    return this.structureProposalsFlow.run(userId, source, dto);
   }
 
   @Post('journeys/:journeyId/session-zero/questions')
-  sessionZeroQuestions(
+  async sessionZeroQuestions(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
   ) {
-    return this.sessionZeroQuestionsFlow.run(session.user.id, journeyId);
+    const userId = session.user.id;
+    const source = await this.worldSources.ofJourney(userId, journeyId);
+    return this.sessionZeroQuestionsFlow.run(userId, source);
+  }
+
+  @Post('system-drafts/:draftId/session-zero/questions')
+  async draftSessionZeroQuestions(
+    @Session() session: UserSession<Auth>,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+  ) {
+    const userId = session.user.id;
+    const source = await this.worldSources.ofDraft(userId, draftId);
+    return this.sessionZeroQuestionsFlow.run(userId, source);
   }
 
   @Post('journeys/:journeyId/population')
-  population(
+  async population(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
     @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
   ) {
-    return this.populationFlow.run(session.user.id, journeyId, dto);
+    const userId = session.user.id;
+    const source = await this.worldSources.ofJourney(userId, journeyId);
+    return this.populationFlow.run(userId, source, dto);
+  }
+
+  @Post('system-drafts/:draftId/population')
+  async draftPopulation(
+    @Session() session: UserSession<Auth>,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
+  ) {
+    const userId = session.user.id;
+    const source = await this.worldSources.ofDraft(userId, draftId);
+    return this.populationFlow.run(userId, source, dto);
   }
 
   @Post('journeys/:journeyId/character-options')
-  characterOptions(
+  async characterOptions(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
   ) {
-    return this.characterOptionsFlow.run(session.user.id, journeyId);
+    const userId = session.user.id;
+    const source = await this.worldSources.ofJourney(userId, journeyId);
+    return this.characterOptionsFlow.run(userId, source);
+  }
+
+  @Post('system-drafts/:draftId/character-options')
+  async draftCharacterOptions(
+    @Session() session: UserSession<Auth>,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+  ) {
+    const userId = session.user.id;
+    const source = await this.worldSources.ofDraft(userId, draftId);
+    return this.characterOptionsFlow.run(userId, source);
   }
 
   @Post('journeys/:journeyId/character-draft')
-  characterDraft(
+  async characterDraft(
     @Session() session: UserSession<Auth>,
     @Param('journeyId', ParseUUIDPipe) journeyId: string,
     @Body(new ZodValidationPipe(characterDraftSchema)) dto: CharacterDraftDto,
   ) {
-    return this.characterDraftFlow.run(session.user.id, journeyId, dto.concept);
+    const userId = session.user.id;
+    const source = await this.worldSources.ofJourney(userId, journeyId);
+    return this.characterDraftFlow.run(userId, source, dto.concept);
+  }
+
+  @Post('system-drafts/:draftId/character-draft')
+  async draftCharacterDraft(
+    @Session() session: UserSession<Auth>,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body(new ZodValidationPipe(characterDraftSchema)) dto: CharacterDraftDto,
+  ) {
+    const userId = session.user.id;
+    const source = await this.worldSources.ofDraft(userId, draftId);
+    return this.characterDraftFlow.run(userId, source, dto.concept);
   }
 
   @Post('journeys/:journeyId/play-sessions/:sessionId/narration')

@@ -1,12 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CampaignsService } from '../../campaigns/campaigns.service.js';
-import { JourneysService } from '../../journeys/journeys.service.js';
 import type { SessionZeroQuestionDto } from '../../session-zero/dto/replace-questions.dto.js';
 import type { StructureField } from '../../structures/structure-field.js';
-import { StructuresService } from '../../structures/structures.service.js';
 import { isActorStructure } from '../../tags/actors.js';
-import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { keysOf } from '../field-values.js';
@@ -15,6 +11,7 @@ import {
   describeFields,
   describeJourney,
 } from '../journey-context.js';
+import type { WorldSource } from '../world-source.js';
 import { worldOf } from './population.flow.js';
 
 const QUESTIONS = { min: 3, max: 6 };
@@ -40,26 +37,20 @@ export function askableFields(fields: readonly StructureField[]): StructureField
 export class SessionZeroQuestionsFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
-    private readonly campaignsService: CampaignsService,
-    private readonly structuresService: StructuresService,
-    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
   async run(
     userId: string,
-    journeyId: string,
+    source: WorldSource,
   ): Promise<SessionZeroQuestionDto[]> {
-    await this.journeysService.ensureOwner(userId, journeyId);
-
     const [credentials, journey, campaign, structures, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId),
-        this.journeysService.findOne(userId, journeyId),
-        this.campaignsService.find(userId, journeyId),
-        this.structuresService.findAll(userId, journeyId),
-        this.tagsService.findFieldTags(userId, journeyId),
+        source.journey(),
+        source.campaign(),
+        source.structures(),
+        source.fieldTags(),
       ]);
 
     const actors = structures.find(isActorStructure);

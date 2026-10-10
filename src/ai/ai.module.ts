@@ -6,6 +6,7 @@ import { MembersModule } from '../members/members.module.js';
 import { PlaySessionsModule } from '../play-sessions/play-sessions.module.js';
 import { ResourcesModule } from '../resources/resources.module.js';
 import { StructuresModule } from '../structures/structures.module.js';
+import { SystemDraftsModule } from '../system-drafts/system-drafts.module.js';
 import { TagsModule } from '../tags/tags.module.js';
 import { AgentRunner } from './agent-runner.js';
 import { AiKeyCipher } from './ai-key.cipher.js';
@@ -20,6 +21,7 @@ import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
+import { WorldSources } from './world-source.js';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { OpenRouterClient } from './openrouter.client.js';
     PlaySessionsModule,
     CampaignsModule,
     CatalogModule,
+    SystemDraftsModule,
   ],
   controllers: [AiController],
   providers: [
@@ -46,6 +49,7 @@ import { OpenRouterClient } from './openrouter.client.js';
     StructureProposalsFlow,
     PopulationFlow,
     SessionZeroQuestionsFlow,
+    WorldSources,
   ],
   exports: [AiService],
 })

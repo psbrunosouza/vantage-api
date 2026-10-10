@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import type { Campaign } from '../campaigns/campaigns.schema.js';
-import type { Journey } from '../journeys/journeys.schema.js';
 import type { StructureField } from '../structures/structure-field.js';
-import type { StructureView } from '../structures/structure-view.js';
-import type { FieldTag } from '../tags/field-tags.schema.js';
+import type {
+  WorldFieldTag,
+  WorldJourney,
+  WorldStructure,
+} from './world-source.js';
 
 const relationSource = z.looseObject({
   chips: z.looseObject({
@@ -35,7 +37,7 @@ export function fillableFields(
 
 export function describeFields(
   fields: readonly StructureField[],
-  fieldTags: readonly FieldTag[] = [],
+  fieldTags: readonly WorldFieldTag[] = [],
 ): string {
   const fillable = fillableFields(fields);
 
@@ -73,9 +75,9 @@ export function describeValues(
 }
 
 export function describeJourney(
-  journey: Journey,
-  structures: readonly StructureView[],
-  fieldTags: readonly FieldTag[] = [],
+  journey: WorldJourney,
+  structures: readonly WorldStructure[],
+  fieldTags: readonly WorldFieldTag[] = [],
 ): string {
   return [
     `Journey: ${journey.name}`,

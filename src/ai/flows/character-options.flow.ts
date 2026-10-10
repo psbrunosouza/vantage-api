@@ -1,12 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { JourneysService } from '../../journeys/journeys.service.js';
 import { isActorStructure } from '../../tags/actors.js';
-import { StructuresService } from '../../structures/structures.service.js';
-import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { describeJourney } from '../journey-context.js';
+import type { WorldSource } from '../world-source.js';
 
 const PROMPT = [
   'You suggest player characters for a solo tabletop RPG played in Vantage.',
@@ -35,20 +33,15 @@ const OUTPUT = {
 export class CharacterOptionsFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
-    private readonly structuresService: StructuresService,
-    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
-  async run(userId: string, journeyId: string): Promise<CharacterOption[]> {
-    await this.journeysService.ensureOwner(userId, journeyId);
-
+  async run(userId: string, source: WorldSource): Promise<CharacterOption[]> {
     const [credentials, journey, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
-      this.journeysService.findOne(userId, journeyId),
-      this.structuresService.findAll(userId, journeyId),
-      this.tagsService.findFieldTags(userId, journeyId),
+      source.journey(),
+      source.structures(),
+      source.fieldTags(),
     ]);
 
     if (!structures.some(isActorStructure)) {

@@ -1,14 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CampaignsService } from '../../campaigns/campaigns.service.js';
-import { JourneysService } from '../../journeys/journeys.service.js';
 import type { StructureField } from '../../structures/structure-field.js';
-import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { AI_FIELD_SIZES, layoutFields } from '../field-layout.js';
 import { describeCampaign } from '../journey-context.js';
 import type { StructureProposalsDto } from '../dto/structure-proposals.dto.js';
+import type { WorldSource } from '../world-source.js';
 import { STRUCTURE_ICONS } from './system-options.flow.js';
 
 const STRUCTURES = 6;
@@ -62,26 +60,21 @@ export interface StructureProposal {
 export class StructureProposalsFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
-    private readonly campaignsService: CampaignsService,
-    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
   async run(
     userId: string,
-    journeyId: string,
+    source: WorldSource,
     dto: StructureProposalsDto,
   ): Promise<StructureProposal[]> {
-    await this.journeysService.ensureOwner(userId, journeyId);
-
     const [credentials, journey, campaign, structureTags, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId),
-        this.journeysService.findOne(userId, journeyId),
-        this.campaignsService.find(userId, journeyId),
-        this.tagsService.findStructureTags(userId, journeyId),
-        this.tagsService.findFieldTags(userId, journeyId),
+        source.journey(),
+        source.campaign(),
+        source.structureTags(),
+        source.fieldTags(),
       ]);
 
     const listing = (tags: readonly { slug: string; description: string }[]) =>

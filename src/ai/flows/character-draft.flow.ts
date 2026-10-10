@@ -1,10 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { JourneysService } from '../../journeys/journeys.service.js';
 import type { StructureField } from '../../structures/structure-field.js';
 import { isActorStructure } from '../../tags/actors.js';
-import { StructuresService } from '../../structures/structures.service.js';
-import { TagsService } from '../../tags/tags.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { type AiCredentials, AiService } from '../ai.service.js';
 import {
@@ -19,6 +16,7 @@ import {
   describeJourney,
   fillableFields,
 } from '../journey-context.js';
+import type { WorldSource } from '../world-source.js';
 
 export interface CharacterDraft {
   name: string;
@@ -72,24 +70,19 @@ const DESIGN_OUTPUT = {
 export class CharacterDraftFlow {
   constructor(
     private readonly aiService: AiService,
-    private readonly journeysService: JourneysService,
-    private readonly structuresService: StructuresService,
-    private readonly tagsService: TagsService,
     private readonly runner: AgentRunner,
   ) {}
 
   async run(
     userId: string,
-    journeyId: string,
+    source: WorldSource,
     concept: string | undefined,
   ): Promise<CharacterDraft> {
-    await this.journeysService.ensureOwner(userId, journeyId);
-
     const [credentials, journey, structures, fieldTags] = await Promise.all([
       this.aiService.credentialsOf(userId),
-      this.journeysService.findOne(userId, journeyId),
-      this.structuresService.findAll(userId, journeyId),
-      this.tagsService.findFieldTags(userId, journeyId),
+      source.journey(),
+      source.structures(),
+      source.fieldTags(),
     ]);
 
     const actors = structures.find(isActorStructure);

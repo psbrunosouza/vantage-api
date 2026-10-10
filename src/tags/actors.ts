@@ -5,7 +5,7 @@ import type { StructureTag } from './structure-tags.schema.js';
 export const ACTORS_SLUG = 'atores';
 
 export function isActorStructure(structure: {
-  tags: readonly StructureTag[];
+  tags: readonly Pick<StructureTag, 'journeyId' | 'slug'>[];
 }): boolean {
   return structure.tags.some(
     (tag) => tag.journeyId === null && tag.slug === ACTORS_SLUG,
