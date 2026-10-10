@@ -16,6 +16,7 @@ import { CharacterDraftFlow } from './flows/character-draft.flow.js';
 import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
 import { PopulationFlow } from './flows/population.flow.js';
+import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
 import { OpenRouterClient } from './openrouter.client.js';
@@ -44,6 +45,7 @@ import { OpenRouterClient } from './openrouter.client.js';
     NarrationFlow,
     StructureProposalsFlow,
     PopulationFlow,
+    SessionZeroQuestionsFlow,
   ],
   exports: [AiService],
 })

@@ -37,6 +37,7 @@ import { CharacterDraftFlow } from './flows/character-draft.flow.js';
 import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
 import { PopulationFlow } from './flows/population.flow.js';
+import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
 import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
 import { SystemOptionsFlow } from './flows/system-options.flow.js';
 
@@ -52,6 +53,7 @@ export class AiController {
     private readonly narrationFlow: NarrationFlow,
     private readonly structureProposalsFlow: StructureProposalsFlow,
     private readonly populationFlow: PopulationFlow,
+    private readonly sessionZeroQuestionsFlow: SessionZeroQuestionsFlow,
   ) {}
 
   @Get('models')
@@ -103,6 +105,14 @@ export class AiController {
     dto: StructureProposalsDto,
   ) {
     return this.structureProposalsFlow.run(session.user.id, journeyId, dto);
+  }
+
+  @Post('journeys/:journeyId/session-zero/questions')
+  sessionZeroQuestions(
+    @Session() session: UserSession<Auth>,
+    @Param('journeyId', ParseUUIDPipe) journeyId: string,
+  ) {
+    return this.sessionZeroQuestionsFlow.run(session.user.id, journeyId);
   }
 
   @Post('journeys/:journeyId/population')
