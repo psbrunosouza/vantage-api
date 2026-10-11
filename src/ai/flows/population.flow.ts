@@ -82,19 +82,26 @@ export function populationTargets(
 
 export function replacements(
   world: readonly WorldStructure[],
-  resources: readonly Pick<Resource, 'id' | 'structureId'>[],
+  resources: readonly WorldResource[],
   ids: readonly string[],
-): { structure: WorldStructure; count: number; ids: string[] }[] {
+): { structure: WorldStructure; count: number; ids: string[]; notes: string[] }[] {
   return world.flatMap((structure) => {
-    const replaced = resources
-      .filter(
-        (resource) =>
-          resource.structureId === structure.id && ids.includes(resource.id),
-      )
-      .map((resource) => resource.id);
+    const replaced = resources.filter(
+      (resource) =>
+        resource.structureId === structure.id && ids.includes(resource.id),
+    );
 
     return replaced.length > 0
-      ? [{ structure, count: replaced.length, ids: replaced }]
+      ? [
+          {
+            structure,
+            count: replaced.length,
+            ids: replaced.map((resource) => resource.id),
+            notes: replaced.flatMap((resource) =>
+              resource.aiNote ? [`${resource.name}: ${resource.aiNote}`] : [],
+            ),
+          },
+        ]
       : [];
   });
 }
@@ -133,19 +140,24 @@ export class PopulationFlow {
     const replaced = dto.request
       ? []
       : replacements(world, resources, dto.replace);
-    const targets: { structure: WorldStructure; count: number | RecordRange }[] =
+    const targets: {
+      structure: WorldStructure;
+      count: number | RecordRange;
+      notes: string[];
+    }[] =
       replaced.length > 0
         ? replaced
         : populationTargets(structures, resources).map((structure) => ({
             structure,
             count: RECORDS,
+            notes: [],
           }));
     const drafts = dto.request
       ? await this.request(credentials, context, world, fieldTags, dto.request)
       : (
           await Promise.all(
-            targets.map(({ structure, count }) =>
-              this.draft(credentials, context, structure, fieldTags, count),
+            targets.map(({ structure, count, notes }) =>
+              this.draft(credentials, context, structure, fieldTags, count, notes),
             ),
           )
         ).flat();
@@ -176,6 +188,7 @@ export class PopulationFlow {
     structure: WorldStructure,
     fieldTags: readonly WorldFieldTag[],
     count: number | RecordRange,
+    notes: readonly string[],
   ): Promise<RecordDraft[]> {
     const { min, max } =
       typeof count === 'number' ? { min: count, max: count } : count;
@@ -191,7 +204,12 @@ export class PopulationFlow {
             context,
             `Structure: ${structure.name}`,
             `Fields: ${describeFields(structure.fields, fieldTags)}`,
-          ].join('\n\n'),
+            notes.length > 0
+              ? `The new records replace records that had these notes for the oracle. Follow them:\n${notes.map((note) => `- ${note}`).join('\n')}`
+              : null,
+          ]
+            .filter((part) => part !== null)
+            .join('\n\n'),
         },
       ],
       {
@@ -353,14 +371,18 @@ export class PopulationFlow {
   }
 }
 
-function describeRecords(
+export function describeRecords(
   world: readonly WorldStructure[],
-  resources: readonly Pick<Resource, 'name' | 'structureId'>[],
+  resources: readonly Pick<WorldResource, 'name' | 'structureId' | 'aiNote'>[],
 ): string {
   const lines = world.flatMap((structure) =>
     resources
       .filter((resource) => resource.structureId === structure.id)
-      .map((resource) => `- ${resource.name} (${structure.name})`),
+      .map((resource) =>
+        resource.aiNote
+          ? `- ${resource.name} (${structure.name}): ${resource.aiNote}`
+          : `- ${resource.name} (${structure.name})`,
+      ),
   );
 
   return lines.length > 0

@@ -38,7 +38,7 @@ export type WorldStructure = Pick<
 export type WorldResource = Pick<
   Resource,
   'id' | 'structureId' | 'name' | 'values'
->;
+> & { aiNote?: string | null };
 
 export interface NewResource {
   structureId: string;

@@ -114,7 +114,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 
 ## Resources
 
-- `resources` = objeto real. Pertence a uma structure (`structure_id`, cascade). Valores em `values` (`jsonb`), chave = id do field.
+- `resources` = objeto real. Pertence a uma structure (`structure_id`, cascade). Valores em `values` (`jsonb`), chave = id do field. `ai_note` (`text`, opcional, ≤ 500) = nota pro Oráculo; `POST`/`PATCH` aceitam `aiNote`. No rascunho fica em `resources[].aiNote` (jsonb) e o commit copia pra coluna.
 - Rotas: `GET /api/systems/:systemId/resources`, `POST /api/systems/:systemId/structures/:structureId/resources`, `PATCH /api/systems/:systemId/resources/:id`, `POST /api/systems/:systemId/resources/:id/fields/:fieldId/image`.
 - Leitura: quem vê a system. Criar: só dono. `PATCH` e imagem: dono ou quem controla a ficha (`MembersService.ensureEditor`).
 - `values` validado por Zod montado dos fields da structure (`resource-values.ts`, tipo por `type`). Chave de field inexistente ou sem valor (section, separator) é descartada. `PATCH` substitui `values` inteiro.
@@ -166,6 +166,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Flows em `/api/ai/systems/:systemId/`:
   - `POST campaign-start` → IA cria campanha local no mundo da system (contexto: system + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
   - `POST structures` (`{ themes, structures, kept?, replaced? }`) → NDJSON, uma proposta `{ name, icon, tagIds, aiNote, fields }` por linha conforme a IA gera (máx. 14). IA já escreve nota curta pro Oráculo na estrutura e em cada campo (`aiNote`: frase ≤ 12 palavras + 2–3 palavras-chave, `frase · a, b, c`; vazia no campo → sem `aiNote`). `kept` (`{ name, tags }`, travadas no front) nunca voltam; com `replaced` a IA gera exatamente essa quantidade de novas, diferentes das travadas e das substituídas. Não salva.
+  - `POST population` (`{ replace?, request? }`) → `{ resources, hooks }`. Contexto lista fichas existentes com a nota (`- Nome (Estrutura): aiNote`). `replace` refaz essas fichas por structure; notas das substituídas vão no pedido como orientação pras novas. Salva via `WorldSource.replaceResources`.
   - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Contexto: system (nome, descrição, structures). Exige structure de actors (`400`). Não salva.
   - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Contexto: system. Exige structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.

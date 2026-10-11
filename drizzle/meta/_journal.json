@@ -176,6 +176,13 @@
       "when": 1791663904424,
       "tag": "0024_rename_journeys_to_systems",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791760899487,
+      "tag": "0025_resource_ai_note",
+      "breakpoints": true
     }
   ]
 }

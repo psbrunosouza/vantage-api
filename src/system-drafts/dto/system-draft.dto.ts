@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { campaignOptionSchema } from '../../ai/flows/campaign-options.flow.js';
 import { createSystemSchema } from '../../systems/dto/create-system.dto.js';
 import { createCharacterSchema } from '../../resources/dto/create-character.dto.js';
+import { AI_NOTE_LENGTH } from '../../resources/dto/create-resource.dto.js';
 import { sessionZeroQuestionSchema } from '../../session-zero/dto/replace-questions.dto.js';
 import { createStructureSchema } from '../../structures/dto/create-structure.dto.js';
 import { createTagSchema } from '../../tags/dto/create-tag.dto.js';
@@ -20,6 +21,7 @@ export const draftResourceSchema = z.object({
   structureId: z.uuid(),
   name: z.string().min(1),
   values: z.record(z.string(), z.unknown()).default({}),
+  aiNote: z.string().trim().max(AI_NOTE_LENGTH).nullable().optional(),
 });
 
 export const draftHookSchema = z.object({

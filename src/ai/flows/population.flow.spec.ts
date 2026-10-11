@@ -1,13 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import type { StructureView } from '../../structures/structure-view.js';
 import type { StructureTag } from '../../tags/structure-tags.schema.js';
-import { populationTargets, replacements } from './population.flow.js';
+import type { WorldResource } from '../world-source.js';
+import {
+  describeRecords,
+  populationTargets,
+  replacements,
+} from './population.flow.js';
 
 const ACTORS = { systemId: null, slug: 'atores' } as StructureTag;
 const PLACES = { systemId: null, slug: 'locais' } as StructureTag;
 
 function structure(id: string, tags: StructureTag[]): StructureView {
-  return { id, tags } as unknown as StructureView;
+  return { id, name: id, tags } as unknown as StructureView;
+}
+
+function record(
+  id: string,
+  structureId: string,
+  aiNote: string | null = null,
+): WorldResource {
+  return { id, structureId, name: id, values: {}, aiNote };
 }
 
 describe('populationTargets', () => {
@@ -32,10 +45,10 @@ describe('populationTargets', () => {
 
   it('groups the replaced records by structure, outside the players', () => {
     const resources = [
-      { id: 'kaya', structureId: 'crew' },
-      { id: 'ilse', structureId: 'figures' },
-      { id: 'orin', structureId: 'figures' },
-      { id: 'tower', structureId: 'districts' },
+      record('kaya', 'crew'),
+      record('ilse', 'figures'),
+      record('orin', 'figures'),
+      record('tower', 'districts'),
     ];
 
     expect(
@@ -43,5 +56,29 @@ describe('populationTargets', () => {
         ({ structure, count, ids }) => [structure.id, count, ids],
       ),
     ).toEqual([['figures', 2, ['ilse', 'orin']]]);
+  });
+
+  it('carries the oracle notes of the replaced records', () => {
+    const resources = [
+      record('ilse', 'figures', 'Trai o grupo no fim'),
+      record('orin', 'figures'),
+    ];
+
+    expect(
+      replacements([figures], resources, ['ilse', 'orin']).map(
+        ({ notes }) => notes,
+      ),
+    ).toEqual([['ilse: Trai o grupo no fim']]);
+  });
+
+  it('lists the existing records with their notes', () => {
+    expect(
+      describeRecords(
+        [figures, districts],
+        [record('ilse', 'figures', 'Trai o grupo no fim'), record('tower', 'districts')],
+      ),
+    ).toBe(
+      'Records that already exist:\n- ilse (figures): Trai o grupo no fim\n- tower (districts)',
+    );
   });
 });
