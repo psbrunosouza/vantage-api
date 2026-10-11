@@ -100,7 +100,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `status`: `incomplete` | `complete`. `system_id` preenchido no commit.
 - Seções em `jsonb`: `progress` (estado do front para retomar), `system`, `options` (3 campanhas `{ option, world }`), `structure_tags`, `field_tags`, `structures`, `resources`, `hooks`, `questions`, `character`. Ids de estruturas, registros e tags já são uuid e entram iguais no commit.
 - Rotas em `/api/system-drafts`: `GET` (incompletos), `GET tags` (tags globais), `GET/PATCH/DELETE :id`, `POST` (cria), `POST :id/commit` (transação: system + membro dono, tags, estruturas + links, registros, personagem, sessão zero; marca `complete`).
-- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, cada uma com estruturas e povoamento, grava `options`), `structures`, `population`, `session-zero/questions`, `character-options`, `character-draft`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
+- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, só sinopse, grava `options` com `world: null`), `structures`, `population`, `session-zero/questions`, `character-options`, `character-draft`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
 - Chamadas ao OpenRouter: no máximo 8 simultâneas por key (`KeyedLimiter`), resto em fila.
 
 ## Structures
