@@ -20,6 +20,7 @@ const PROMPT = [
   'Give each structure one or more structure tags from the list, using their slugs. The description of a tag says what it means for the game master.',
   'Give each structure four to eight fields. A field has a label, a type and, when it fits, one or more field tags from the list, using their slugs. A choice field also lists its options.',
   'Use progress for meters such as health or pressure. Never propose relations to other structures.',
+  'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
   'Write names, labels and options in Brazilian Portuguese.',
 ].join('\n');
 
@@ -51,6 +52,21 @@ const OUTPUT = {
     structures: z.array(proposalSchema).min(1).max(MAX_STRUCTURES),
   }),
 };
+
+export function lockedLines(dto: StructureProposalsDto): string[] {
+  return [
+    dto.kept.length > 0
+      ? `Kept structures:\n${dto.kept
+          .map(({ name, tags }) =>
+            tags.length > 0 ? `- ${name} (${tags.join(', ')})` : `- ${name}`,
+          )
+          .join('\n')}`
+      : null,
+    dto.replaced.length > 0
+      ? `Structures to replace with ${dto.replaced.length} new ones: ${dto.replaced.join(', ')}`
+      : null,
+  ].filter((line) => line !== null);
+}
 
 export interface StructureProposal {
   name: string;
@@ -89,6 +105,8 @@ export class StructureProposalsFlow {
       slugs: readonly string[],
     ) => tags.filter((tag) => slugs.includes(tag.slug)).map((tag) => tag.id);
 
+    const limit =
+      dto.replaced.length > 0 ? dto.replaced.length : MAX_STRUCTURES;
     let count = 0;
 
     await this.runner.submitEach(
@@ -105,6 +123,7 @@ export class StructureProposalsFlow {
             dto.structures.length > 0
               ? `Suggested structures: ${dto.structures.join(', ')}`
               : null,
+            ...lockedLines(dto),
             `Structure tags:\n${listing(structureTags)}`,
             `Field tags:\n${listing(fieldTags)}`,
           ]
@@ -115,7 +134,7 @@ export class StructureProposalsFlow {
       OUTPUT,
       proposalSchema,
       (structure) => {
-        if (count >= MAX_STRUCTURES) {
+        if (count >= limit) {
           return;
         }
 
