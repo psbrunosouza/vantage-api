@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AvatarService } from '../avatar/avatar.service.js';
 import { DATABASE } from '../database/database.module.js';
@@ -29,7 +29,7 @@ export class SystemsService {
       .select()
       .from(systems)
       .where(this.visibleTo(userId))
-      .orderBy(asc(systems.createdAt));
+      .orderBy(desc(systems.createdAt));
   }
 
   async create(ownerId: string, dto: CreateSystemDto): Promise<System> {
