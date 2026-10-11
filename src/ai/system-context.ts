@@ -55,9 +55,9 @@ export function describeFields(
         const tag = fieldTags.find((candidate) => candidate.id === id);
         return tag ? [`@${tag.slug}: ${tag.description}`] : [];
       });
-      return meanings.length > 0
-        ? `${field.label} (${kind}; ${meanings.join('; ')})`
-        : `${field.label} (${kind})`;
+      const notes = field.aiNote ? [`note: ${field.aiNote}`] : [];
+      const details = [kind, ...meanings, ...notes];
+      return `${field.label} (${details.join('; ')})`;
     })
     .join('; ');
 }

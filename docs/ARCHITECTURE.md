@@ -105,7 +105,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 
 ## Structures
 
-- `structures` = modelo. Pertence a uma system (`system_id`, cascade). Fields em `fields` (`jsonb`): tipo, label, posição no grid, options e config. Compartilhado por todos os resources dela.
+- `structures` = modelo. Pertence a uma system (`system_id`, cascade). Fields em `fields` (`jsonb`): tipo, label, posição no grid, options, config e `aiNote` opcional (nota pro Oráculo, ≤ 500). Compartilhado por todos os resources dela.
 - Rotas em `/api/systems/:systemId/structures`. Leitura: quem vê a system. Escrita: só dono.
 - `capability` (`text`, `STRUCTURE_CAPABILITIES`: `actor`; `null` = nenhuma). Structure `actor` = fichas jogáveis da system; todas as fichas dela são actors. Máximo 1 por system (`structures_actor_unique`, índice único parcial). `POST`/`PATCH` com `actor` tira a marca da anterior na mesma transação; sair de `actor` remove o controle (`member_resources`) das fichas dela.
 - `fields`: Zod valida só campos base (`id`, `type`, `label`, `column`, `row`, `span`, `rows`, `options`). Config de cada tipo passa sem checagem.
@@ -159,7 +159,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `OpenRouterClient.chat` = chat completions (formato OpenAI, `tools`, `tool_choice`). `401` → `400` (key recusada), `402` → `400` (sem créditos), `429` → `429`, resto → `502` com a mensagem da OpenRouter. `chatStream` = mesmo request com `stream: true` (SSE); repassa os argumentos do tool call conforme chegam.
 - `AgentRunner`: `reply` (loop de tools, máx. 6 passos; o último força `tool_choice: 'none'`) e `submit` (saída estruturada: obriga a chamar uma tool cujo input é o resultado, validado por Zod; inválido volta pra IA com o erro, máx. 3 tentativas). `submitEach` = `submit` em stream para resultado `{ lista: [...] }`: cada item fechado (`closedItemsOf`) é validado sozinho e entregue na hora; item inválido é pulado; nenhum válido → volta pra IA com o erro (máx. 3). Erro de Zod ou `HttpException` numa tool volta pra IA; outro erro sobe.
 - Tools (`ai/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
-- `system-context.ts`: system, structures, campanha e ficha em texto compacto (label, nunca id).
+- `system-context.ts`: system, structures, campanha e ficha em texto compacto (label, nunca id). Campo descrito com tipo, tags (`@slug: descrição`) e `note:` (aiNote do campo); estrutura com `Note:` (ai_note).
 - Stream (`common/ndjson.ts`, `streamLines`): `application/x-ndjson`, um JSON por linha. Erro antes da 1ª linha → resposta de erro normal; depois → linha `{ error: { code, message } }` e fecha.
 - Flows (`ai/flows/`):
   - `POST /api/ai/campaign-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem system. Não salva.
