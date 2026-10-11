@@ -11,6 +11,8 @@ import { STRUCTURE_ICONS } from './campaign-options.flow.js';
 
 const MIN_STRUCTURES = 6;
 const MAX_STRUCTURES = 14;
+const NOTE_WORDS = 12;
+const NOTE_LENGTH = 500;
 
 const PROMPT = [
   'You design the data model of a solo tabletop RPG played in Vantage.',
@@ -20,8 +22,9 @@ const PROMPT = [
   'Give each structure one or more structure tags from the list, using their slugs. The description of a tag says what it means for the game master.',
   'Give each structure four to eight fields. A field has a label, a type and, when it fits, one or more field tags from the list, using their slugs. A choice field also lists its options.',
   'Use progress for meters such as health or pressure. Never propose relations to other structures.',
+  `Give each structure and each field a note for the oracle that explains what it means in this world: one short sentence of at most ${NOTE_WORDS} words, then two or three keywords, as in "Quem os jogadores controlam · sobrevivência, grupo, confiança".`,
   'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
-  'Write names, labels and options in Brazilian Portuguese.',
+  'Write names, labels, options and notes in Brazilian Portuguese.',
 ].join('\n');
 
 const FIELD_TYPES = Object.keys(AI_FIELD_SIZES) as [
@@ -33,6 +36,7 @@ const proposalSchema = z.object({
   name: z.string().min(1),
   icon: z.enum(STRUCTURE_ICONS),
   tags: z.array(z.string()),
+  note: z.string(),
   fields: z
     .array(
       z.object({
@@ -40,10 +44,13 @@ const proposalSchema = z.object({
         label: z.string().min(1),
         tags: z.array(z.string()),
         options: z.array(z.string()),
+        note: z.string(),
       }),
     )
     .min(1),
 });
+
+type ProposalDraft = z.infer<typeof proposalSchema>;
 
 const OUTPUT = {
   name: 'submit_structures',
@@ -72,7 +79,44 @@ export interface StructureProposal {
   name: string;
   icon: string;
   tagIds: string[];
+  aiNote: string;
   fields: StructureField[];
+}
+
+interface ProposalTag {
+  id: string;
+  slug: string;
+}
+
+function idsOf(tags: readonly ProposalTag[], slugs: readonly string[]): string[] {
+  return tags.filter((tag) => slugs.includes(tag.slug)).map((tag) => tag.id);
+}
+
+function noteOf(note: string): string {
+  return note.trim().slice(0, NOTE_LENGTH);
+}
+
+export function proposalOf(
+  structure: ProposalDraft,
+  structureTags: readonly ProposalTag[],
+  fieldTags: readonly ProposalTag[],
+): StructureProposal {
+  return {
+    name: structure.name,
+    icon: structure.icon,
+    tagIds: idsOf(structureTags, structure.tags),
+    aiNote: noteOf(structure.note),
+    fields: layoutFields([], structure.fields).map((field, index) => {
+      const draft = structure.fields[index];
+      const aiNote = noteOf(draft.note);
+
+      return {
+        ...field,
+        tagIds: idsOf(fieldTags, draft.tags),
+        ...(aiNote ? { aiNote } : {}),
+      };
+    }),
+  };
 }
 
 @Injectable()
@@ -99,11 +143,6 @@ export class StructureProposalsFlow {
 
     const listing = (tags: readonly { slug: string; description: string }[]) =>
       tags.map((tag) => `- ${tag.slug}: ${tag.description}`).join('\n');
-
-    const idsOf = (
-      tags: readonly { id: string; slug: string }[],
-      slugs: readonly string[],
-    ) => tags.filter((tag) => slugs.includes(tag.slug)).map((tag) => tag.id);
 
     const limit =
       dto.replaced.length > 0 ? dto.replaced.length : MAX_STRUCTURES;
@@ -139,15 +178,7 @@ export class StructureProposalsFlow {
         }
 
         count++;
-        onProposal({
-          name: structure.name,
-          icon: structure.icon,
-          tagIds: idsOf(structureTags, structure.tags),
-          fields: layoutFields([], structure.fields).map((field, index) => ({
-            ...field,
-            tagIds: idsOf(fieldTags, structure.fields[index].tags),
-          })),
-        });
+        onProposal(proposalOf(structure, structureTags, fieldTags));
       },
     );
   }

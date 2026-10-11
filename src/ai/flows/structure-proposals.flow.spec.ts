@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lockedLines } from './structure-proposals.flow.js';
+import { lockedLines, proposalOf } from './structure-proposals.flow.js';
 
 const dto = (
   kept: { name: string; tags: string[] }[],
@@ -26,5 +26,42 @@ describe('lockedLines', () => {
       'Kept structures:\n- Tripulação (atores)\n- Contratos',
       'Structures to replace with 2 new ones: Distritos, Facções',
     ]);
+  });
+});
+
+describe('proposalOf', () => {
+  const structureTags = [{ id: 'tag-atores', slug: 'atores' }];
+  const fieldTags = [{ id: 'tag-vida', slug: 'vida' }];
+
+  it('keeps the oracle notes of the structure and of each field', () => {
+    const proposal = proposalOf(
+      {
+        name: 'Sobreviventes',
+        icon: 'users',
+        tags: ['atores', 'desconhecida'],
+        note: '  Quem os jogadores controlam · sobrevivência, grupo  ',
+        fields: [
+          {
+            type: 'progress',
+            label: 'Vida',
+            tags: ['vida'],
+            options: [],
+            note: 'Zera quando cai · dano, cura',
+          },
+          { type: 'short-text', label: 'Nome', tags: [], options: [], note: ' ' },
+        ],
+      },
+      structureTags,
+      fieldTags,
+    );
+
+    expect(proposal.tagIds).toEqual(['tag-atores']);
+    expect(proposal.aiNote).toBe('Quem os jogadores controlam · sobrevivência, grupo');
+    expect(proposal.fields[0]).toMatchObject({
+      label: 'Vida',
+      tagIds: ['tag-vida'],
+      aiNote: 'Zera quando cai · dano, cura',
+    });
+    expect(proposal.fields[1]).not.toHaveProperty('aiNote');
   });
 });
