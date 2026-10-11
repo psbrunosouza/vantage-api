@@ -100,7 +100,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `status`: `incomplete` | `complete`. `system_id` preenchido no commit.
 - Seções em `jsonb`: `progress` (estado do front para retomar), `system`, `options` (3 campanhas `{ option, world }`), `structure_tags`, `field_tags`, `structures`, `resources`, `hooks`, `questions`, `character`. Ids de estruturas, registros e tags já são uuid e entram iguais no commit.
 - Rotas em `/api/system-drafts`: `GET` (incompletos), `GET tags` (tags globais), `GET/PATCH/DELETE :id`, `POST` (cria), `POST :id/commit` (transação: system + membro dono, tags, estruturas + links, registros, personagem, sessão zero; marca `complete`).
-- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, só sinopse, grava `options` com `world: null`), `structures`, `population`, `session-zero/questions`, `character-options`, `character-draft`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
+- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, só sinopse, grava `options` com `world: null`), `structures` (NDJSON), `population`, `session-zero/questions`, `character-options`, `character-draft`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
 - Chamadas ao OpenRouter: no máximo 8 simultâneas por key (`KeyedLimiter`), resto em fila.
 
 ## Structures
@@ -156,14 +156,16 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `PUT`: modelo fora da lista de `models` → `400`. Token validado na OpenRouter (`GET /key`) antes de salvar; inválido → `400`. OpenRouter fora → `502`.
 - Uso interno: `AiService.credentialsOf(userId)` → `{ model, apiKey }` decifrado. Sem modelo ou token → `400`.
 - Jogo solo por enquanto: rotas de geração só do dono, com a key dele.
-- `OpenRouterClient.chat` = chat completions (formato OpenAI, `tools`, `tool_choice`). `401` → `400` (key recusada), `402` → `400` (sem créditos), `429` → `429`, resto → `502` com a mensagem da OpenRouter.
-- `AgentRunner`: `reply` (loop de tools, máx. 6 passos; o último força `tool_choice: 'none'`) e `submit` (saída estruturada: obriga a chamar uma tool cujo input é o resultado, validado por Zod; inválido volta pra IA com o erro, máx. 3 tentativas). Erro de Zod ou `HttpException` numa tool volta pra IA; outro erro sobe.
+- `OpenRouterClient.chat` = chat completions (formato OpenAI, `tools`, `tool_choice`). `401` → `400` (key recusada), `402` → `400` (sem créditos), `429` → `429`, resto → `502` com a mensagem da OpenRouter. `chatStream` = mesmo request com `stream: true` (SSE); repassa os argumentos do tool call conforme chegam.
+- `AgentRunner`: `reply` (loop de tools, máx. 6 passos; o último força `tool_choice: 'none'`) e `submit` (saída estruturada: obriga a chamar uma tool cujo input é o resultado, validado por Zod; inválido volta pra IA com o erro, máx. 3 tentativas). `submitEach` = `submit` em stream para resultado `{ lista: [...] }`: cada item fechado (`closedItemsOf`) é validado sozinho e entregue na hora; item inválido é pulado; nenhum válido → volta pra IA com o erro (máx. 3). Erro de Zod ou `HttpException` numa tool volta pra IA; outro erro sobe.
 - Tools (`ai/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
 - `system-context.ts`: system, structures, campanha e ficha em texto compacto (label, nunca id).
+- Stream (`common/ndjson.ts`, `streamLines`): `application/x-ndjson`, um JSON por linha. Erro antes da 1ª linha → resposta de erro normal; depois → linha `{ error: { code, message } }` e fecha.
 - Flows (`ai/flows/`):
   - `POST /api/ai/campaign-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem system. Não salva.
 - Flows em `/api/ai/systems/:systemId/`:
   - `POST campaign-start` → IA cria campanha local no mundo da system (contexto: system + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
+  - `POST structures` (`{ themes, structures }`) → NDJSON, uma proposta `{ name, icon, tagIds, fields }` por linha conforme a IA gera (máx. 14). Não salva.
   - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Contexto: system (nome, descrição, structures). Exige structure de actors (`400`). Não salva.
   - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Contexto: system. Exige structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.

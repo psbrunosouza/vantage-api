@@ -2,6 +2,7 @@ import { BadGatewayException, HttpException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import type { AiCredentials } from './ai.service.js';
 import { type AiFunction, type AiTool, chatToolOf } from './ai-tool.js';
+import { closedItemsOf } from './closed-items.js';
 import {
   type ChatMessage,
   OpenRouterClient,
@@ -112,6 +113,81 @@ export class AgentRunner {
     });
   }
 
+  async submitEach<T>(
+    credentials: AiCredentials,
+    messages: ChatMessage[],
+    output: AiFunction,
+    item: z.ZodType<T>,
+    onItem: (item: T) => void,
+  ): Promise<void> {
+    const transcript = [...messages];
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      let read = 0;
+      let sent = 0;
+
+      const reply = await this.openRouter.chatStream(
+        credentials.apiKey,
+        {
+          model: credentials.model,
+          messages: transcript,
+          tools: [chatToolOf(output)],
+          tool_choice: { type: 'function', function: { name: output.name } },
+        },
+        (text) => {
+          const items = closedItemsOf(text);
+
+          for (const raw of items.slice(read)) {
+            const parsed = item.safeParse(jsonOf(raw));
+
+            if (parsed.success) {
+              onItem(parsed.data);
+              sent++;
+            }
+          }
+
+          read = items.length;
+        },
+      );
+
+      if (sent > 0) {
+        return;
+      }
+
+      const call = reply.tool_calls?.find(
+        (candidate) => candidate.function.name === output.name,
+      );
+
+      if (!call) {
+        transcript.push(
+          { role: 'assistant', content: reply.content },
+          { role: 'user', content: `Call ${output.name} with the result.` },
+        );
+        continue;
+      }
+
+      const parsed = output.input.safeParse(argumentsOf(call));
+
+      transcript.push(
+        { role: 'assistant', content: reply.content, tool_calls: [call] },
+        {
+          role: 'tool',
+          tool_call_id: call.id,
+          content: JSON.stringify({
+            error: parsed.success
+              ? 'No valid item was found.'
+              : z.prettifyError(parsed.error),
+          }),
+        },
+      );
+    }
+
+    throw new BadGatewayException({
+      code: 'AI_INVALID_RESULT',
+      message: "The AI couldn't produce a valid result. Try again.",
+    });
+  }
+
   private async execute(tools: AiTool[], call: ToolCall): Promise<string> {
     const tool = tools.find(
       (candidate) => candidate.name === call.function.name,
@@ -140,8 +216,12 @@ export class AgentRunner {
 function argumentsOf(call: ToolCall): unknown {
   const raw = call.function.arguments.trim();
 
+  return raw === '' ? {} : jsonOf(raw);
+}
+
+function jsonOf(raw: string): unknown {
   try {
-    return raw === '' ? {} : JSON.parse(raw);
+    return JSON.parse(raw) as unknown;
   } catch {
     return raw;
   }

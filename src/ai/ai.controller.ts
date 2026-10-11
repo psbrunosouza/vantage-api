@@ -9,10 +9,13 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Res,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
+import type { Response } from 'express';
 import type { Auth } from '../auth/auth.js';
+import { streamLines } from '../common/ndjson.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AiService } from './ai.service.js';
 import {
@@ -116,10 +119,13 @@ export class AiController {
     @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(structureProposalsSchema))
     dto: StructureProposalsDto,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.structureProposalsFlow.run(userId, source, dto);
+    await streamLines(response, (send) =>
+      this.structureProposalsFlow.run(userId, source, dto, send),
+    );
   }
 
   @Post('system-drafts/:draftId/structures')
@@ -128,10 +134,13 @@ export class AiController {
     @Param('draftId', ParseUUIDPipe) draftId: string,
     @Body(new ZodValidationPipe(structureProposalsSchema))
     dto: StructureProposalsDto,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.structureProposalsFlow.run(userId, source, dto);
+    await streamLines(response, (send) =>
+      this.structureProposalsFlow.run(userId, source, dto, send),
+    );
   }
 
   @Post('systems/:systemId/session-zero/questions')

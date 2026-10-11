@@ -56,6 +56,32 @@ const completionSchema = z.object({
     .min(1),
 });
 
+const deltaSchema = z.object({
+  choices: z
+    .array(
+      z.object({
+        delta: z.object({
+          content: z.string().nullish(),
+          tool_calls: z
+            .array(
+              z.object({
+                index: z.number(),
+                id: z.string().nullish(),
+                function: z
+                  .object({
+                    name: z.string().nullish(),
+                    arguments: z.string().nullish(),
+                  })
+                  .nullish(),
+              }),
+            )
+            .nullish(),
+        }),
+      }),
+    )
+    .default([]),
+});
+
 const failureSchema = z.object({
   error: z.object({
     message: z.string(),
@@ -127,11 +153,96 @@ export class OpenRouterClient {
     return this.limiter.run(apiKey, () => this.complete(apiKey, request));
   }
 
+  chatStream(
+    apiKey: string,
+    request: ChatRequest,
+    onArguments: (text: string) => void,
+  ): Promise<ChatReply> {
+    return this.limiter.run(apiKey, () =>
+      this.stream(apiKey, request, onArguments),
+    );
+  }
+
   private async complete(
     apiKey: string,
     request: ChatRequest,
   ): Promise<ChatReply> {
-    const response = await this.request('/chat/completions', {
+    const response = await this.post(apiKey, request);
+    const body: unknown = await response.json().catch(() => null);
+    const completion = completionSchema.safeParse(body);
+
+    if (!response.ok || !completion.success) {
+      throw rejectionOf(response.status, body);
+    }
+
+    return completion.data.choices[0].message;
+  }
+
+  private async stream(
+    apiKey: string,
+    request: ChatRequest,
+    onArguments: (text: string) => void,
+  ): Promise<ChatReply> {
+    const response = await this.post(apiKey, { ...request, stream: true });
+
+    if (!response.ok || response.body === null) {
+      throw rejectionOf(
+        response.status,
+        await response.json().catch(() => null),
+      );
+    }
+
+    let content = '';
+    const calls: ToolCall[] = [];
+
+    for await (const event of eventsOf(response.body)) {
+      const failure = failureMessageOf(event);
+
+      if (failure !== null) {
+        throw new BadGatewayException({
+          code: 'AI_PROVIDER_FAILED',
+          message: failure,
+        });
+      }
+
+      const delta = deltaSchema.safeParse(event);
+
+      if (!delta.success) {
+        continue;
+      }
+
+      for (const { delta: part } of delta.data.choices) {
+        content += part.content ?? '';
+
+        for (const piece of part.tool_calls ?? []) {
+          const call = (calls[piece.index] ??= {
+            id: '',
+            type: 'function',
+            function: { name: '', arguments: '' },
+          });
+
+          call.id ||= piece.id ?? '';
+          call.function.name += piece.function?.name ?? '';
+          call.function.arguments += piece.function?.arguments ?? '';
+
+          if (piece.index === 0 && piece.function?.arguments) {
+            onArguments(call.function.arguments);
+          }
+        }
+      }
+    }
+
+    return {
+      content: content || null,
+      tool_calls: calls.length > 0 ? calls.filter(Boolean) : undefined,
+    };
+  }
+
+  private post(
+    apiKey: string,
+    request: ChatRequest & { stream?: boolean },
+  ): Promise<Response> {
+    return this.request('/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -139,44 +250,6 @@ export class OpenRouterClient {
       },
       body: JSON.stringify(request),
     });
-    const body: unknown = await response.json().catch(() => null);
-    const failure = failureMessageOf(body);
-
-    if (response.status === 401) {
-      throw new BadRequestException({
-        code: 'AI_KEY_REJECTED',
-        message: 'OpenRouter rejected your key.',
-      });
-    }
-
-    if (response.status === 402) {
-      throw new BadRequestException({
-        code: 'AI_NO_CREDITS',
-        message: 'Your OpenRouter account is out of credits.',
-      });
-    }
-
-    if (response.status === 429) {
-      throw new HttpException(
-        {
-          code: 'AI_RATE_LIMITED',
-          message: failure ?? 'OpenRouter is rate limiting. Try again shortly.',
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    const completion = completionSchema.safeParse(body);
-
-    if (!response.ok || !completion.success) {
-      throw new BadGatewayException(
-        failure === null
-          ? UNREACHABLE
-          : { code: 'AI_PROVIDER_FAILED', message: failure },
-      );
-    }
-
-    return completion.data.choices[0].message;
   }
 
   private async request(path: string, init?: RequestInit): Promise<Response> {
@@ -186,6 +259,77 @@ export class OpenRouterClient {
       throw new BadGatewayException(UNREACHABLE, { cause: error });
     }
   }
+}
+
+export async function* eventsOf(
+  body: ReadableStream<Uint8Array>,
+): AsyncGenerator<unknown> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = done ? '' : (lines.pop() ?? '');
+
+    for (const line of lines) {
+      const data = line.startsWith('data:') ? line.slice(5).trim() : '';
+
+      if (data === '[DONE]') {
+        return;
+      }
+
+      if (data !== '') {
+        try {
+          yield JSON.parse(data) as unknown;
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    if (done) {
+      return;
+    }
+  }
+}
+
+function rejectionOf(status: number, body: unknown): HttpException {
+  const failure = failureMessageOf(body);
+
+  if (status === 401) {
+    return new BadRequestException({
+      code: 'AI_KEY_REJECTED',
+      message: 'OpenRouter rejected your key.',
+    });
+  }
+
+  if (status === 402) {
+    return new BadRequestException({
+      code: 'AI_NO_CREDITS',
+      message: 'Your OpenRouter account is out of credits.',
+    });
+  }
+
+  if (status === 429) {
+    return new HttpException(
+      {
+        code: 'AI_RATE_LIMITED',
+        message: failure ?? 'OpenRouter is rate limiting. Try again shortly.',
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  return new BadGatewayException(
+    failure === null
+      ? UNREACHABLE
+      : { code: 'AI_PROVIDER_FAILED', message: failure },
+  );
 }
 
 function failureMessageOf(body: unknown): string | null {

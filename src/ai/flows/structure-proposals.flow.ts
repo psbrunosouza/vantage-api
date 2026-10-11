@@ -70,7 +70,8 @@ export class StructureProposalsFlow {
     userId: string,
     source: WorldSource,
     dto: StructureProposalsDto,
-  ): Promise<StructureProposal[]> {
+    onProposal: (proposal: StructureProposal) => void,
+  ): Promise<void> {
     const [credentials, system, campaign, structureTags, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId),
@@ -83,7 +84,14 @@ export class StructureProposalsFlow {
     const listing = (tags: readonly { slug: string; description: string }[]) =>
       tags.map((tag) => `- ${tag.slug}: ${tag.description}`).join('\n');
 
-    const { structures } = await this.runner.submit(
+    const idsOf = (
+      tags: readonly { id: string; slug: string }[],
+      slugs: readonly string[],
+    ) => tags.filter((tag) => slugs.includes(tag.slug)).map((tag) => tag.id);
+
+    let count = 0;
+
+    await this.runner.submitEach(
       credentials,
       [
         { role: 'system', content: PROMPT },
@@ -105,21 +113,23 @@ export class StructureProposalsFlow {
         },
       ],
       OUTPUT,
+      proposalSchema,
+      (structure) => {
+        if (count >= MAX_STRUCTURES) {
+          return;
+        }
+
+        count++;
+        onProposal({
+          name: structure.name,
+          icon: structure.icon,
+          tagIds: idsOf(structureTags, structure.tags),
+          fields: layoutFields([], structure.fields).map((field, index) => ({
+            ...field,
+            tagIds: idsOf(fieldTags, structure.fields[index].tags),
+          })),
+        });
+      },
     );
-
-    const idsOf = (
-      tags: readonly { id: string; slug: string }[],
-      slugs: readonly string[],
-    ) => tags.filter((tag) => slugs.includes(tag.slug)).map((tag) => tag.id);
-
-    return structures.map((structure) => ({
-      name: structure.name,
-      icon: structure.icon,
-      tagIds: idsOf(structureTags, structure.tags),
-      fields: layoutFields([], structure.fields).map((field, index) => ({
-        ...field,
-        tagIds: idsOf(fieldTags, structure.fields[index].tags),
-      })),
-    }));
   }
 }
