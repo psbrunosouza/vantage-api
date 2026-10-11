@@ -32,8 +32,7 @@
 
 ## Execução
 
-- Mudou código → rodar build + testes antes do commit: `npm run build` e `npm test`. Quebrou → corrigir.
-- Reportar só falha (linha decisiva). Passou → uma linha.
+- Não rodar build nem testes: o usuário roda. Specs seguem sendo criados/atualizados (ver Testes).
 - Não rodar lint, serve, Docker, request HTTP, screenshot ou browser sem pedido explícito.
 
 ## Git
