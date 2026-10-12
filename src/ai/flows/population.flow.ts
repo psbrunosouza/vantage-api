@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import type { Resource } from '../../resources/resources.schema.js';
 import type { StructureField } from '../../structures/structure-field.js';
@@ -86,6 +86,22 @@ export function populationTargets(
   return structures.filter((structure) => !filled.has(structure.id));
 }
 
+export function drawTarget(
+  world: readonly WorldStructure[],
+  structureId: string,
+): { structure: WorldStructure; count: number; notes: string[] } {
+  const structure = world.find((current) => current.id === structureId);
+
+  if (structure === undefined) {
+    throw new NotFoundException({
+      code: 'STRUCTURE_NOT_FOUND',
+      message: 'Structure not found.',
+    });
+  }
+
+  return { structure, count: 1, notes: [] };
+}
+
 export function replacements(
   world: readonly WorldStructure[],
   resources: readonly WorldResource[],
@@ -143,15 +159,17 @@ export class PopulationFlow {
       .filter((part) => part !== null)
       .join('\n\n');
 
-    const replaced = dto.request
-      ? []
-      : replacements(structures, resources, dto.replace);
+    const replaced =
+      dto.request || dto.draw
+        ? []
+        : replacements(structures, resources, dto.replace);
     const targets: {
       structure: WorldStructure;
       count: number | RecordRange;
       notes: string[];
-    }[] =
-      replaced.length > 0
+    }[] = dto.draw
+      ? [drawTarget(structures, dto.draw)]
+      : replaced.length > 0
         ? replaced
         : populationTargets(structures, resources).map((structure) => ({
             structure,
