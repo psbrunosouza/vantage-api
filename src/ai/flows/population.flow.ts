@@ -123,10 +123,11 @@ export class PopulationFlow {
     userId: string,
     source: WorldSource,
     dto: PopulationDto,
+    signal?: AbortSignal,
   ): Promise<Population> {
     const [credentials, system, campaign, structures, resources, fieldTags] =
       await Promise.all([
-        this.aiService.credentialsOf(userId),
+        this.aiService.credentialsOf(userId, signal),
         source.system(),
         source.campaign(),
         source.structures(),
@@ -167,18 +168,22 @@ export class PopulationFlow {
           )
         ).flat();
 
-    const saved = await source.replaceResources(
-      replaced.flatMap(({ ids }) => ids),
-      drafts.map((draft) => ({
-        structureId: draft.structure.id,
-        name: draft.name,
-        values: draft.values,
-      })),
-    );
+    const removed = replaced.flatMap(({ ids }) => ids);
+    const created = drafts.map((draft) => ({
+      structureId: draft.structure.id,
+      name: draft.name,
+      values: draft.values,
+    }));
+    const hooks = await this.hooks(credentials, context, structures, [
+      ...resources.filter((resource) => !removed.includes(resource.id)),
+      ...created,
+    ]);
+
+    signal?.throwIfAborted();
 
     return {
-      resources: saved,
-      hooks: await this.hooks(credentials, context, structures, saved),
+      resources: await source.replaceResources(removed, created),
+      hooks,
     };
   }
 
@@ -331,7 +336,10 @@ export class PopulationFlow {
     credentials: AiCredentials,
     context: string,
     world: readonly WorldStructure[],
-    resources: readonly WorldResource[],
+    resources: readonly Pick<
+      WorldResource,
+      'name' | 'structureId' | 'aiNote' | 'values'
+    >[],
   ): Promise<Hook[]> {
     if (resources.length < 2) {
       return [];

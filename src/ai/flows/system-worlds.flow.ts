@@ -30,10 +30,13 @@ export class SystemWorldsFlow {
     userId: string,
     draftId: string,
     dto: CampaignOptionsDto,
+    signal?: AbortSignal,
   ): Promise<SystemDraft> {
     await this.systemDraftsService.findOpen(userId, draftId);
-    const pitches = await this.campaignOptionsFlow.pitches(userId, dto);
+    const pitches = await this.campaignOptionsFlow.pitches(userId, dto, signal);
     const options = draftOptionsOf(await Promise.allSettled(pitches));
+
+    signal?.throwIfAborted();
 
     return this.systemDraftsService.update(userId, draftId, { options });
   }

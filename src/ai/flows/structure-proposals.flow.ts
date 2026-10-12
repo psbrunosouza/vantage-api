@@ -148,10 +148,11 @@ export class StructureProposalsFlow {
     source: WorldSource,
     dto: StructureProposalsDto,
     onProposal: (proposal: StructureProposal) => void,
+    signal?: AbortSignal,
   ): Promise<void> {
     const [credentials, system, campaign, structureTags, fieldTags] =
       await Promise.all([
-        this.aiService.credentialsOf(userId),
+        this.aiService.credentialsOf(userId, signal),
         source.system(),
         source.campaign(),
         source.structureTags(),

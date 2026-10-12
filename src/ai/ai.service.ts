@@ -19,6 +19,7 @@ export interface AiSettingsView {
 export interface AiCredentials {
   model: string;
   apiKey: string;
+  signal?: AbortSignal;
 }
 
 @Injectable()
@@ -77,7 +78,10 @@ export class AiService {
       .where(eq(aiSettings.userId, userId));
   }
 
-  async credentialsOf(userId: string): Promise<AiCredentials> {
+  async credentialsOf(
+    userId: string,
+    signal?: AbortSignal,
+  ): Promise<AiCredentials> {
     const settings = await this.settingsOf(userId);
 
     if (!settings?.model || !settings.apiKey) {
@@ -90,6 +94,7 @@ export class AiService {
     return {
       model: settings.model,
       apiKey: this.cipher.decrypt(settings.apiKey),
+      signal,
     };
   }
 

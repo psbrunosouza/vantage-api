@@ -24,12 +24,16 @@ export class AgentRunner {
     const transcript = [...messages];
 
     for (let step = 1; step <= MAX_STEPS; step++) {
-      const reply = await this.openRouter.chat(credentials.apiKey, {
-        model: credentials.model,
-        messages: transcript,
-        tools: tools.map(chatToolOf),
-        tool_choice: step === MAX_STEPS ? 'none' : undefined,
-      });
+      const reply = await this.openRouter.chat(
+        credentials.apiKey,
+        {
+          model: credentials.model,
+          messages: transcript,
+          tools: tools.map(chatToolOf),
+          tool_choice: step === MAX_STEPS ? 'none' : undefined,
+        },
+        credentials.signal,
+      );
 
       if (!reply.tool_calls?.length) {
         const text = reply.content?.trim();
@@ -73,12 +77,16 @@ export class AgentRunner {
     const transcript = [...messages];
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      const reply = await this.openRouter.chat(credentials.apiKey, {
-        model: credentials.model,
-        messages: transcript,
-        tools: [chatToolOf(output)],
-        tool_choice: { type: 'function', function: { name: output.name } },
-      });
+      const reply = await this.openRouter.chat(
+        credentials.apiKey,
+        {
+          model: credentials.model,
+          messages: transcript,
+          tools: [chatToolOf(output)],
+          tool_choice: { type: 'function', function: { name: output.name } },
+        },
+        credentials.signal,
+      );
       const call = reply.tool_calls?.find(
         (candidate) => candidate.function.name === output.name,
       );
@@ -148,6 +156,7 @@ export class AgentRunner {
 
           read = items.length;
         },
+        credentials.signal,
       );
 
       if (sent > 0) {

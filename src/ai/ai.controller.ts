@@ -15,6 +15,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
 import type { Auth } from '../auth/auth.js';
+import { closedSignal } from '../common/closed-signal.js';
 import { streamLines } from '../common/ndjson.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AiService } from './ai.service.js';
@@ -93,8 +94,14 @@ export class AiController {
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
     @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.systemWorldsFlow.run(session.user.id, draftId, dto);
+    return this.systemWorldsFlow.run(
+      session.user.id,
+      draftId,
+      dto,
+      closedSignal(response),
+    );
   }
 
   @Post('systems/:systemId/campaign-start')
@@ -115,8 +122,9 @@ export class AiController {
   ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofSystem(userId, systemId);
+    const signal = closedSignal(response);
     await streamLines(response, (send) =>
-      this.structureProposalsFlow.run(userId, source, dto, send),
+      this.structureProposalsFlow.run(userId, source, dto, send, signal),
     );
   }
 
@@ -130,8 +138,9 @@ export class AiController {
   ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
+    const signal = closedSignal(response);
     await streamLines(response, (send) =>
-      this.structureProposalsFlow.run(userId, source, dto, send),
+      this.structureProposalsFlow.run(userId, source, dto, send, signal),
     );
   }
 
@@ -139,20 +148,30 @@ export class AiController {
   async sessionZeroQuestions(
     @Session() session: UserSession<Auth>,
     @Param('systemId', ParseUUIDPipe) systemId: string,
+    @Res({ passthrough: true }) response: Response,
   ) {
     const userId = session.user.id;
     const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.sessionZeroQuestionsFlow.run(userId, source);
+    return this.sessionZeroQuestionsFlow.run(
+      userId,
+      source,
+      closedSignal(response),
+    );
   }
 
   @Post('system-drafts/:draftId/session-zero/questions')
   async draftSessionZeroQuestions(
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Res({ passthrough: true }) response: Response,
   ) {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.sessionZeroQuestionsFlow.run(userId, source);
+    return this.sessionZeroQuestionsFlow.run(
+      userId,
+      source,
+      closedSignal(response),
+    );
   }
 
   @Post('systems/:systemId/population')
@@ -160,10 +179,16 @@ export class AiController {
     @Session() session: UserSession<Auth>,
     @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
+    @Res({ passthrough: true }) response: Response,
   ) {
     const userId = session.user.id;
     const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.populationFlow.run(userId, source, dto);
+    return this.populationFlow.run(
+      userId,
+      source,
+      dto,
+      closedSignal(response),
+    );
   }
 
   @Post('system-drafts/:draftId/population')
@@ -171,10 +196,16 @@ export class AiController {
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
     @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
+    @Res({ passthrough: true }) response: Response,
   ) {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.populationFlow.run(userId, source, dto);
+    return this.populationFlow.run(
+      userId,
+      source,
+      dto,
+      closedSignal(response),
+    );
   }
 
   @Post('systems/:systemId/play-sessions/:sessionId/narration')

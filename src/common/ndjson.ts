@@ -28,6 +28,10 @@ export async function streamLines(
   try {
     await run(send);
   } catch (error) {
+    if (response.destroyed) {
+      return;
+    }
+
     if (!response.headersSent) {
       throw error;
     }

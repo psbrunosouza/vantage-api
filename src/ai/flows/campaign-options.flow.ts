@@ -151,10 +151,11 @@ export class CampaignOptionsFlow {
   async pitches(
     userId: string,
     dto: CampaignOptionsDto,
+    signal?: AbortSignal,
   ): Promise<Promise<CampaignOption>[]> {
     const chosen = dto.themes ?? [];
     const [credentials, random] = await Promise.all([
-      this.aiService.credentialsOf(userId),
+      this.aiService.credentialsOf(userId, signal),
       chosen.length > 0
         ? []
         : this.catalogService.randomThemes(SETS * MAX_THEMES),

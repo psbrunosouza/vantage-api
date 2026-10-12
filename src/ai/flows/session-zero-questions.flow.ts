@@ -43,10 +43,11 @@ export class SessionZeroQuestionsFlow {
   async run(
     userId: string,
     source: WorldSource,
+    signal?: AbortSignal,
   ): Promise<SessionZeroQuestionDto[]> {
     const [credentials, system, campaign, structures, fieldTags] =
       await Promise.all([
-        this.aiService.credentialsOf(userId),
+        this.aiService.credentialsOf(userId, signal),
         source.system(),
         source.campaign(),
         source.structures(),

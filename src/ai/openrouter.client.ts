@@ -149,25 +149,33 @@ export class OpenRouterClient {
     return true;
   }
 
-  chat(apiKey: string, request: ChatRequest): Promise<ChatReply> {
-    return this.limiter.run(apiKey, () => this.complete(apiKey, request));
+  chat(
+    apiKey: string,
+    request: ChatRequest,
+    signal?: AbortSignal,
+  ): Promise<ChatReply> {
+    return this.limiter.run(apiKey, () =>
+      this.complete(apiKey, request, signal),
+    );
   }
 
   chatStream(
     apiKey: string,
     request: ChatRequest,
     onArguments: (text: string) => void,
+    signal?: AbortSignal,
   ): Promise<ChatReply> {
     return this.limiter.run(apiKey, () =>
-      this.stream(apiKey, request, onArguments),
+      this.stream(apiKey, request, onArguments, signal),
     );
   }
 
   private async complete(
     apiKey: string,
     request: ChatRequest,
+    signal?: AbortSignal,
   ): Promise<ChatReply> {
-    const response = await this.post(apiKey, request);
+    const response = await this.post(apiKey, request, signal);
     const body: unknown = await response.json().catch(() => null);
     const completion = completionSchema.safeParse(body);
 
@@ -182,8 +190,13 @@ export class OpenRouterClient {
     apiKey: string,
     request: ChatRequest,
     onArguments: (text: string) => void,
+    signal?: AbortSignal,
   ): Promise<ChatReply> {
-    const response = await this.post(apiKey, { ...request, stream: true });
+    const response = await this.post(
+      apiKey,
+      { ...request, stream: true },
+      signal,
+    );
 
     if (!response.ok || response.body === null) {
       throw rejectionOf(
@@ -241,6 +254,7 @@ export class OpenRouterClient {
   private post(
     apiKey: string,
     request: ChatRequest & { stream?: boolean },
+    signal?: AbortSignal,
   ): Promise<Response> {
     return this.request('/chat/completions', {
       method: 'POST',
@@ -249,6 +263,7 @@ export class OpenRouterClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(request),
+      signal,
     });
   }
 
@@ -256,6 +271,7 @@ export class OpenRouterClient {
     try {
       return await fetch(`${BASE_URL}${path}`, init);
     } catch (error) {
+      init?.signal?.throwIfAborted();
       throw new BadGatewayException(UNREACHABLE, { cause: error });
     }
   }

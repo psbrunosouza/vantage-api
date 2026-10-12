@@ -109,3 +109,41 @@ describe('AgentRunner.submitEach', () => {
     });
   });
 });
+
+describe('AgentRunner.submit', () => {
+  it('sends the caller signal to the model so a closed request stops it', async () => {
+    const signal = new AbortController().signal;
+    const received: (AbortSignal | undefined)[] = [];
+    const client = {
+      chat: async (
+        _apiKey: string,
+        _request: unknown,
+        given?: AbortSignal,
+      ): Promise<ChatReply> => {
+        received.push(given);
+        return {
+          content: null,
+          tool_calls: [
+            {
+              id: 'call',
+              type: 'function',
+              function: {
+                name: output.name,
+                arguments: '{"items":[{"name":"Portos"}]}',
+              },
+            },
+          ],
+        };
+      },
+    } as unknown as OpenRouterClient;
+
+    const result = await new AgentRunner(client).submit(
+      { ...credentials, signal },
+      [],
+      output,
+    );
+
+    expect(result).toEqual({ items: [{ name: 'Portos' }] });
+    expect(received).toEqual([signal]);
+  });
+});
