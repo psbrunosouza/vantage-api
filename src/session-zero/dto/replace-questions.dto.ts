@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { SESSION_ZERO_FORMATS } from '../session-zero.schema.js';
 
-export const SESSION_ZERO_LIMIT = 6;
 export const SESSION_ZERO_OPTIONS = 6;
 
 const CHOICE_FORMATS: readonly string[] = ['single', 'multiple'];
@@ -31,7 +30,7 @@ export const sessionZeroQuestionSchema = z
   );
 
 export const replaceQuestionsSchema = z.object({
-  questions: z.array(sessionZeroQuestionSchema).max(SESSION_ZERO_LIMIT),
+  questions: z.array(sessionZeroQuestionSchema),
 });
 
 export type SessionZeroQuestionDto = z.infer<typeof sessionZeroQuestionSchema>;

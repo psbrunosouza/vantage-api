@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import {
-  SESSION_ZERO_LIMIT,
   SESSION_ZERO_OPTIONS,
   type SessionZeroQuestionDto,
 } from '../../session-zero/dto/replace-questions.dto.js';
@@ -16,7 +15,7 @@ import {
 import type { WorldSource } from '../world-source.js';
 import { worldOf } from './population.flow.js';
 
-const QUESTIONS = { min: 3, max: SESSION_ZERO_LIMIT };
+const QUESTIONS = { min: 3, max: 6 };
 
 const PROMPT = [
   'You prepare the session zero of a tabletop RPG played in Vantage.',

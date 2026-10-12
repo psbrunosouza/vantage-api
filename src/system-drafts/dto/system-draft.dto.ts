@@ -2,10 +2,7 @@ import { z } from 'zod';
 import { campaignOptionSchema } from '../../ai/flows/campaign-options.flow.js';
 import { createSystemSchema } from '../../systems/dto/create-system.dto.js';
 import { AI_NOTE_LENGTH } from '../../resources/dto/create-resource.dto.js';
-import {
-  SESSION_ZERO_LIMIT,
-  sessionZeroQuestionSchema,
-} from '../../session-zero/dto/replace-questions.dto.js';
+import { sessionZeroQuestionSchema } from '../../session-zero/dto/replace-questions.dto.js';
 import { createStructureSchema } from '../../structures/dto/create-structure.dto.js';
 import { createTagSchema } from '../../tags/dto/create-tag.dto.js';
 
@@ -52,7 +49,7 @@ export const systemDraftSchema = z
     structures: z.array(draftStructureSchema),
     resources: z.array(draftResourceSchema),
     hooks: z.array(draftHookSchema),
-    questions: z.array(sessionZeroQuestionSchema).max(SESSION_ZERO_LIMIT),
+    questions: z.array(sessionZeroQuestionSchema),
   })
   .partial();
 
