@@ -4,6 +4,7 @@ import { AgentRunner } from './agent-runner.js';
 import type {
   ChatMessage,
   ChatReply,
+  ChatRequest,
   OpenRouterClient,
 } from './openrouter.client.js';
 
@@ -145,5 +146,31 @@ describe('AgentRunner.submit', () => {
 
     expect(result).toEqual({ items: [{ name: 'Portos' }] });
     expect(received).toEqual([signal]);
+  });
+
+  it('asks the model for low reasoning', async () => {
+    const requests: ChatRequest[] = [];
+    const client = {
+      chat: async (_apiKey: string, request: ChatRequest): Promise<ChatReply> => {
+        requests.push(request);
+        return {
+          content: null,
+          tool_calls: [
+            {
+              id: 'call',
+              type: 'function',
+              function: {
+                name: output.name,
+                arguments: '{"items":[{"name":"Portos"}]}',
+              },
+            },
+          ],
+        };
+      },
+    } as unknown as OpenRouterClient;
+
+    await new AgentRunner(client).submit(credentials, [], output);
+
+    expect(requests[0].reasoning).toEqual({ effort: 'low' });
   });
 });

@@ -112,11 +112,16 @@ export interface ChatTool {
 export type ToolChoice =
   'none' | { type: 'function'; function: { name: string } };
 
+export interface ChatReasoning {
+  effort: 'low' | 'medium' | 'high';
+}
+
 export interface ChatRequest {
   model: string;
   messages: ChatMessage[];
   tools?: ChatTool[];
   tool_choice?: ToolChoice;
+  reasoning?: ChatReasoning;
 }
 
 @Injectable()

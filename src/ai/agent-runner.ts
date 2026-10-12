@@ -5,12 +5,14 @@ import { type AiFunction, type AiTool, chatToolOf } from './ai-tool.js';
 import { closedItemsOf } from './closed-items.js';
 import {
   type ChatMessage,
+  type ChatReasoning,
   OpenRouterClient,
   type ToolCall,
 } from './openrouter.client.js';
 
 const MAX_STEPS = 6;
 const MAX_ATTEMPTS = 3;
+const STRUCTURED_REASONING: ChatReasoning = { effort: 'low' };
 
 @Injectable()
 export class AgentRunner {
@@ -84,6 +86,7 @@ export class AgentRunner {
           messages: transcript,
           tools: [chatToolOf(output)],
           tool_choice: { type: 'function', function: { name: output.name } },
+          reasoning: STRUCTURED_REASONING,
         },
         credentials.signal,
       );
@@ -141,6 +144,7 @@ export class AgentRunner {
           messages: transcript,
           tools: [chatToolOf(output)],
           tool_choice: { type: 'function', function: { name: output.name } },
+          reasoning: STRUCTURED_REASONING,
         },
         (text) => {
           const items = closedItemsOf(text);
