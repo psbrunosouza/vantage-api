@@ -14,7 +14,7 @@ import { SystemsService } from '../systems/systems.service.js';
 import { parseResourceValues } from '../resources/resource-values.js';
 import { resources } from '../resources/resources.schema.js';
 import { sessionZeroQuestions } from '../session-zero/session-zero.schema.js';
-import { foreignStructureIds } from '../session-zero/session-zero.service.js';
+import { questionRows } from '../session-zero/session-zero.service.js';
 import { structures } from '../structures/structures.schema.js';
 import { fieldTags } from '../tags/field-tags.schema.js';
 import {
@@ -149,12 +149,7 @@ export class SystemDraftsService {
       });
     }
 
-    const structureIds = draft.structures.map((structure) => structure.id);
-
-    if (
-      orphanResources(draft.resources, draft.structures).length > 0 ||
-      foreignStructureIds(draft.questions, structureIds).length > 0
-    ) {
+    if (orphanResources(draft.resources, draft.structures).length > 0) {
       throw new BadRequestException(STRUCTURE_NOT_FOUND);
     }
 
@@ -226,13 +221,9 @@ export class SystemDraftsService {
       }
 
       if (draft.questions.length > 0) {
-        await tx.insert(sessionZeroQuestions).values(
-          draft.questions.map((question, position) => ({
-            ...question,
-            systemId,
-            position,
-          })),
-        );
+        await tx
+          .insert(sessionZeroQuestions)
+          .values(questionRows(systemId, draft.questions));
       }
 
       await tx

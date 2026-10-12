@@ -1,11 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import type { SessionZeroQuestionDto } from '../../session-zero/dto/replace-questions.dto.js';
-import type { StructureField } from '../../structures/structure-field.js';
+import {
+  SESSION_ZERO_LIMIT,
+  SESSION_ZERO_OPTIONS,
+  type SessionZeroQuestionDto,
+} from '../../session-zero/dto/replace-questions.dto.js';
 import { isActorStructure } from '../../tags/actors.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
-import { keysOf } from '../field-values.js';
 import {
   describeCampaign,
   describeFields,
@@ -14,23 +16,62 @@ import {
 import type { WorldSource } from '../world-source.js';
 import { worldOf } from './population.flow.js';
 
-const QUESTIONS = { min: 3, max: 6 };
-const ASKED_TYPES = ['choice', 'short-text', 'long-text', 'number'];
-const TEXT_TYPES = ['short-text', 'long-text'];
+const QUESTIONS = { min: 3, max: SESSION_ZERO_LIMIT };
 
 const PROMPT = [
   'You prepare the session zero of a tabletop RPG played in Vantage.',
-  `Write ${QUESTIONS.min} to ${QUESTIONS.max} questions that every invited player answers before joining. Each answer fills one field of the player character sheet.`,
-  'A field question asks for the value of a field. For a choice field, give each option a short description of at most six words.',
-  'A record question asks the player to pick a record of a world structure, such as the faction they owe. Its answer is written in a text field.',
-  'A bond question asks which other player the character already knows. Its answer is written in a text field.',
-  'Questions are short, in the second person, and make the player imagine a scene of the campaign.',
-  'Never ask twice for the same field.',
+  `Write ${QUESTIONS.min} to ${QUESTIONS.max} questions that every new player answers while discovering their character, before the sheet exists.`,
+  'Ask indirectly, through a short situation of the campaign, never as a form. Never presume who the character is.',
+  'Between them, the questions uncover the name, the background, the personality and the appearance of the character.',
+  `A single question has 2 to ${SESSION_ZERO_OPTIONS} options and the player picks one. A multiple question has 2 to ${SESSION_ZERO_OPTIONS} options and the player picks any. Give each option a short meaning of at most six words.`,
+  'A text question is answered in the player own words. A number question has a minimum and a maximum.',
+  'Players can always answer in their own words, so options are suggestions, not limits.',
+  'Questions are short and in the second person.',
   'Write in the language of the system.',
 ].join('\n');
 
-export function askableFields(fields: readonly StructureField[]): StructureField[] {
-  return fields.filter((field) => ASKED_TYPES.includes(field.type));
+const option = z.object({
+  option: z.string().min(1).max(120),
+  meaning: z.string().max(120),
+});
+
+const draftSchema = z.union([
+  z.object({
+    format: z.enum(['single', 'multiple']),
+    prompt: z.string().min(1).max(200),
+    options: z.array(option).min(2).max(SESSION_ZERO_OPTIONS),
+  }),
+  z.object({
+    format: z.literal('text'),
+    prompt: z.string().min(1).max(200),
+  }),
+  z.object({
+    format: z.literal('number'),
+    prompt: z.string().min(1).max(200),
+    min: z.number().int(),
+    max: z.number().int(),
+  }),
+]);
+
+export type QuestionDraft = z.infer<typeof draftSchema>;
+
+export function questionOf(draft: QuestionDraft): SessionZeroQuestionDto {
+  const options = 'options' in draft ? draft.options : [];
+  const limits =
+    'min' in draft && draft.min < draft.max
+      ? { min: draft.min, max: draft.max }
+      : { min: null, max: null };
+
+  return {
+    prompt: draft.prompt,
+    format: draft.format,
+    options: options.map(({ option: name }) => name),
+    ...limits,
+    reword: true,
+    details: Object.fromEntries(
+      options.map(({ option: name, meaning }) => [name, meaning]),
+    ),
+  };
 }
 
 @Injectable()
@@ -55,56 +96,7 @@ export class SessionZeroQuestionsFlow {
       ]);
 
     const actors = structures.find(isActorStructure);
-    const asked = keysOf(askableFields(actors?.fields ?? []));
-
-    if (!actors || asked.size === 0) {
-      throw new BadRequestException({
-        code: 'ACTOR_FIELDS_MISSING',
-        message: 'The actors structure needs fields first.',
-      });
-    }
-
-    const fieldKeys = [...asked.keys()] as [string, ...string[]];
-    const textKeys = [...asked]
-      .filter(([, field]) => TEXT_TYPES.includes(field.type))
-      .map(([key]) => key);
-    const sources = new Map(
-      worldOf(structures).map((structure) => [structure.name, structure]),
-    );
-    const sourceNames = [...sources.keys()];
-
-    const fieldQuestion = z.object({
-      kind: z.literal('field'),
-      prompt: z.string().min(1),
-      field: z.enum(fieldKeys),
-      options: z
-        .array(z.object({ option: z.string(), description: z.string() }))
-        .describe('Only for choice fields: one short description per option.'),
-    });
-    const textQuestions =
-      textKeys.length > 0
-        ? [
-            z.object({
-              kind: z.literal('bond'),
-              prompt: z.string().min(1),
-              field: z.enum(textKeys as [string, ...string[]]),
-            }),
-            ...(sourceNames.length > 0
-              ? [
-                  z.object({
-                    kind: z.literal('record'),
-                    prompt: z.string().min(1),
-                    field: z.enum(textKeys as [string, ...string[]]),
-                    source: z.enum(sourceNames as [string, ...string[]]),
-                  }),
-                ]
-              : []),
-          ]
-        : [];
-    const question =
-      textQuestions.length > 0
-        ? z.discriminatedUnion('kind', [fieldQuestion, ...textQuestions])
-        : fieldQuestion;
+    const world = worldOf(structures).map((structure) => structure.name);
 
     const { questions } = await this.runner.submit(
       credentials,
@@ -115,11 +107,11 @@ export class SessionZeroQuestionsFlow {
           content: [
             describeSystem(system, structures, fieldTags),
             campaign ? describeCampaign(campaign) : null,
-            `Player sheet (${actors.name}) fields you can fill:\n${[...asked]
-              .map(([key, field]) => `- ${key}: ${describeFields([field], fieldTags)}`)
-              .join('\n')}`,
-            sourceNames.length > 0
-              ? `World structures for record questions: ${sourceNames.join(', ')}`
+            actors
+              ? `Player characters become sheets of ${actors.name} with these fields: ${describeFields(actors.fields, fieldTags)}`
+              : null,
+            world.length > 0
+              ? `World structures the questions can touch: ${world.join(', ')}`
               : null,
           ]
             .filter((part) => part !== null)
@@ -130,31 +122,14 @@ export class SessionZeroQuestionsFlow {
         name: 'submit_questions',
         description: 'Submits the session zero questions.',
         input: z.object({
-          questions: z.array(question).min(QUESTIONS.min).max(QUESTIONS.max),
+          questions: z
+            .array(draftSchema)
+            .min(QUESTIONS.min)
+            .max(QUESTIONS.max),
         }),
       },
     );
 
-    return questions.map((draft) => {
-      const field = asked.get(draft.field);
-      const options = 'options' in draft ? draft.options : [];
-      const source =
-        'source' in draft && typeof draft.source === 'string'
-          ? sources.get(draft.source)
-          : undefined;
-
-      return {
-        prompt: draft.prompt,
-        kind: draft.kind,
-        structureId: actors.id,
-        fieldId: field?.id ?? null,
-        sourceStructureId: source?.id ?? null,
-        details: Object.fromEntries(
-          options
-            .filter(({ option }) => field?.options.includes(option))
-            .map(({ option, description }) => [option, description]),
-        ),
-      };
-    });
+    return questions.map(questionOf);
   }
 }

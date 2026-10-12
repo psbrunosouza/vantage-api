@@ -1,9 +1,8 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { SystemsService } from '../systems/systems.service.js';
-import { structures } from '../structures/structures.schema.js';
 import type {
   ReplaceQuestionsDto,
   SessionZeroQuestionDto,
@@ -13,15 +12,25 @@ import {
   sessionZeroQuestions,
 } from './session-zero.schema.js';
 
-export function foreignStructureIds(
-  questions: readonly SessionZeroQuestionDto[],
-  systemStructureIds: readonly string[],
-): string[] {
-  const owned = new Set(systemStructureIds);
+const CHOICE_FORMATS: readonly string[] = ['single', 'multiple'];
 
-  return questions
-    .flatMap((question) => [question.structureId, question.sourceStructureId])
-    .filter((id): id is string => id !== null && !owned.has(id));
+export function questionRows(
+  systemId: string,
+  questions: readonly SessionZeroQuestionDto[],
+) {
+  return questions.map(
+    ({ prompt, format, options, min, max, reword, details }, position) => ({
+      systemId,
+      position,
+      prompt,
+      format,
+      options: CHOICE_FORMATS.includes(format) ? options : [],
+      min: format === 'number' ? min : null,
+      max: format === 'number' ? max : null,
+      reword,
+      details: CHOICE_FORMATS.includes(format) ? details : {},
+    }),
+  );
 }
 
 @Injectable()
@@ -50,36 +59,15 @@ export class SessionZeroService {
   ): Promise<SessionZeroQuestion[]> {
     await this.systemsService.ensureOwner(userId, systemId);
 
-    const owned = await this.db
-      .select({ id: structures.id })
-      .from(structures)
-      .where(eq(structures.systemId, systemId));
-
-    if (
-      foreignStructureIds(
-        dto.questions,
-        owned.map(({ id }) => id),
-      ).length > 0
-    ) {
-      throw new BadRequestException({
-        code: 'STRUCTURE_NOT_FOUND',
-        message: 'Structure not found.',
-      });
-    }
-
     await this.db.transaction(async (tx) => {
       await tx
         .delete(sessionZeroQuestions)
         .where(eq(sessionZeroQuestions.systemId, systemId));
 
       if (dto.questions.length > 0) {
-        await tx.insert(sessionZeroQuestions).values(
-          dto.questions.map((question, position) => ({
-            ...question,
-            systemId,
-            position,
-          })),
-        );
+        await tx
+          .insert(sessionZeroQuestions)
+          .values(questionRows(systemId, dto.questions));
       }
     });
 
