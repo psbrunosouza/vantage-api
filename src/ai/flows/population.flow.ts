@@ -29,6 +29,8 @@ const PROMPT = [
   'A record is one sheet of a structure: a named character, group, place, item or document of the world.',
   'Records must come from the campaign and fit the other records of the system. Mention names that the campaign already gives.',
   'Make them concrete: players must be able to visit, fight, steal, talk to or use each one.',
+  'Give each record only its proper name, such as "Ivan", "Ana Clara Duarte" or "Valdoria", never a title or epithet such as "Ivan, o Terrível". Titles, nicknames and roles go in the fields.',
+  'Items and equipment must exist in the era and technology of the world.',
   'Never repeat a record that already exists. Never create player characters.',
   'Fill every field. Numbers must be balanced for the start of the campaign.',
   'Write in the language of the system.',

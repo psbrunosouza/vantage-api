@@ -87,4 +87,37 @@ describe('proposalOf', () => {
       'Território',
     ]);
   });
+
+  it('keeps at most eight fields on the atores structure', () => {
+    const labels = [
+      'Vida',
+      'Mana',
+      'Fúria',
+      'Força',
+      'Agilidade',
+      'Astúcia',
+      'Vontade',
+      'Sorte',
+      'Fama',
+    ];
+    const proposal = proposalOf(
+      {
+        name: 'Heróis',
+        icon: 'users',
+        tags: ['atores'],
+        note: '',
+        fields: labels.map((label) => ({
+          type: 'number' as const,
+          label,
+          tags: [],
+          options: [],
+          note: '',
+        })),
+      },
+      structureTags,
+      fieldTags,
+    );
+
+    expect(proposal.fields.map((field) => field.label)).toEqual(labels.slice(0, 8));
+  });
 });
