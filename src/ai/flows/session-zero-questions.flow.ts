@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import {
   SESSION_ZERO_OPTIONS,
+  SESSION_ZERO_PROMPT,
   type SessionZeroQuestionDto,
 } from '../../session-zero/dto/replace-questions.dto.js';
 import { isActorStructure } from '../../tags/actors.js';
@@ -25,7 +26,7 @@ const PROMPT = [
   `A single question has 2 to ${SESSION_ZERO_OPTIONS} options and the player picks one. A multiple question has 2 to ${SESSION_ZERO_OPTIONS} options and the player picks any. Give each option a short meaning of at most six words.`,
   'A text question is answered in the player own words. A number question has a minimum and a maximum.',
   'Players can always answer in their own words, so options are suggestions, not limits.',
-  'Questions are short and in the second person.',
+  `Questions are short, in the second person, at most ${SESSION_ZERO_PROMPT} characters each.`,
   'Write in the language of the system.',
 ].join('\n');
 
@@ -37,16 +38,16 @@ const option = z.object({
 const draftSchema = z.union([
   z.object({
     format: z.enum(['single', 'multiple']),
-    prompt: z.string().min(1).max(200),
+    prompt: z.string().min(1).max(SESSION_ZERO_PROMPT),
     options: z.array(option).min(2).max(SESSION_ZERO_OPTIONS),
   }),
   z.object({
     format: z.literal('text'),
-    prompt: z.string().min(1).max(200),
+    prompt: z.string().min(1).max(SESSION_ZERO_PROMPT),
   }),
   z.object({
     format: z.literal('number'),
-    prompt: z.string().min(1).max(200),
+    prompt: z.string().min(1).max(SESSION_ZERO_PROMPT),
     min: z.number().int(),
     max: z.number().int(),
   }),

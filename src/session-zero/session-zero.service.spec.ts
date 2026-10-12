@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionZeroQuestionDto } from './dto/replace-questions.dto.js';
+import {
+  SESSION_ZERO_PROMPT,
+  sessionZeroQuestionSchema,
+  type SessionZeroQuestionDto,
+} from './dto/replace-questions.dto.js';
 import { questionRows } from './session-zero.service.js';
 
 const question = (
@@ -57,5 +61,14 @@ describe('questionRows', () => {
       null,
       null,
     ]);
+  });
+});
+
+describe('sessionZeroQuestionSchema', () => {
+  it('limits the prompt length', () => {
+    const prompt = (length: number) => question({ prompt: 'a'.repeat(length) });
+
+    expect(sessionZeroQuestionSchema.safeParse(prompt(SESSION_ZERO_PROMPT)).success).toBe(true);
+    expect(sessionZeroQuestionSchema.safeParse(prompt(SESSION_ZERO_PROMPT + 1)).success).toBe(false);
   });
 });

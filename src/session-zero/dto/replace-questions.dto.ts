@@ -3,11 +3,13 @@ import { SESSION_ZERO_FORMATS } from '../session-zero.schema.js';
 
 export const SESSION_ZERO_OPTIONS = 6;
 
+export const SESSION_ZERO_PROMPT = 90;
+
 const CHOICE_FORMATS: readonly string[] = ['single', 'multiple'];
 
 export const sessionZeroQuestionSchema = z
   .object({
-    prompt: z.string().trim().min(1).max(200),
+    prompt: z.string().trim().min(1).max(SESSION_ZERO_PROMPT),
     format: z.enum(SESSION_ZERO_FORMATS).default('text'),
     options: z
       .array(z.string().trim().min(1).max(120))
