@@ -28,10 +28,10 @@ describe('populationTargets', () => {
   const figures = structure('figures', [ACTORS]);
   const districts = structure('districts', [PLACES]);
 
-  it('skips the structure of the player characters', () => {
+  it('targets every structure, the player characters included', () => {
     expect(
       populationTargets([crew, figures, districts], []).map(({ id }) => id),
-    ).toEqual(['figures', 'districts']);
+    ).toEqual(['crew', 'figures', 'districts']);
   });
 
   it('skips structures that already have records', () => {
@@ -40,7 +40,7 @@ describe('populationTargets', () => {
         [crew, figures, districts],
         [{ structureId: 'districts' }],
       ).map(({ id }) => id),
-    ).toEqual(['figures']);
+    ).toEqual(['crew', 'figures']);
   });
 
   it('groups the replaced records by structure, outside the players', () => {

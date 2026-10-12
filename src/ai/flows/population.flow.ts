@@ -31,7 +31,8 @@ const PROMPT = [
   'Make them concrete: players must be able to visit, fight, steal, talk to or use each one.',
   'Give each record only its proper name, such as "Ivan", "Ana Clara Duarte" or "Valdoria", never a title or epithet such as "Ivan, o Terrível". Titles, nicknames and roles go in the fields.',
   'Items and equipment must exist in the era and technology of the world.',
-  'Never repeat a record that already exists. Never create player characters.',
+  'Records of the structure with the atores tag are ready-to-play characters: each one has a clear concept that fits the campaign and the other characters.',
+  'Never repeat a record that already exists.',
   'Fill every field. Numbers must be balanced for the start of the campaign.',
   'Write in the language of the system.',
 ].join('\n');
@@ -79,7 +80,7 @@ export function populationTargets(
   resources: readonly Pick<Resource, 'structureId'>[],
 ): WorldStructure[] {
   const filled = new Set(resources.map((resource) => resource.structureId));
-  return worldOf(structures).filter((structure) => !filled.has(structure.id));
+  return structures.filter((structure) => !filled.has(structure.id));
 }
 
 export function replacements(
@@ -130,18 +131,17 @@ export class PopulationFlow {
         source.fieldTags(),
       ]);
 
-    const world = worldOf(structures);
     const context = [
       describeSystem(system, structures, fieldTags),
       campaign ? describeCampaign(campaign) : null,
-      describeRecords(world, resources),
+      describeRecords(structures, resources),
     ]
       .filter((part) => part !== null)
       .join('\n\n');
 
     const replaced = dto.request
       ? []
-      : replacements(world, resources, dto.replace);
+      : replacements(structures, resources, dto.replace);
     const targets: {
       structure: WorldStructure;
       count: number | RecordRange;
@@ -155,7 +155,7 @@ export class PopulationFlow {
             notes: [],
           }));
     const drafts = dto.request
-      ? await this.request(credentials, context, world, fieldTags, dto.request)
+      ? await this.request(credentials, context, structures, fieldTags, dto.request)
       : (
           await Promise.all(
             targets.map(({ structure, count, notes }) =>
@@ -173,14 +173,9 @@ export class PopulationFlow {
       })),
     );
 
-    const worldIds = new Set(world.map((structure) => structure.id));
-    const current = saved.filter((resource) =>
-      worldIds.has(resource.structureId),
-    );
-
     return {
-      resources: current,
-      hooks: await this.hooks(credentials, context, world, current),
+      resources: saved,
+      hooks: await this.hooks(credentials, context, structures, saved),
     };
   }
 
