@@ -24,7 +24,7 @@ const PROMPT = [
   '"Um dragão vermelho tomou a única passagem entre as montanhas e exige uma princesa por mês como tributo. O rei oferece metade do tesouro real a quem trouxer a cabeça da fera."',
   '"Fantasmas tomaram o transatlântico Rainha do Norte em pleno oceano, e toda noite um passageiro desaparece. Os aventureiros estão a bordo e precisam descobrir quem acordou os mortos antes de serem os próximos."',
   '"A maior corporação da cidade guarda num cofre orbital o único antídoto para a praga que ela mesma criou. Um velho hacker reúne os aventureiros para o assalto do século."',
-  'Also return its themes translated to Brazilian Portuguese, in the same order, and eight structures that fit its world. A structure groups sheets of one kind, such as places, factions or creatures, never player characters. Each structure name is a plural noun of one or two words.',
+  'Also return its themes translated to Brazilian Portuguese, in the same order, and five structures that fit its world. A structure groups sheets of one kind, such as places, factions or creatures, never player characters. Each structure name is a plural noun of one or two words.',
   'When there is a player direction, it takes priority over the theme set.',
   'Write everything in Brazilian Portuguese.',
 ].join('\n');
@@ -32,7 +32,7 @@ const PROMPT = [
 const SETS = 3;
 const MIN_THEMES = 1;
 const MAX_THEMES = 1;
-const STRUCTURES = 8;
+const STRUCTURES = 5;
 const GOALS = ['stop', 'hunt', 'steal', 'rescue', 'escape', 'explore'];
 
 export const STRUCTURE_ICONS = [
