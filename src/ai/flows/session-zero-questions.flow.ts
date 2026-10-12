@@ -26,9 +26,15 @@ const PROMPT = [
   `A single question has 2 to ${SESSION_ZERO_OPTIONS} options and the player picks one. A multiple question has 2 to ${SESSION_ZERO_OPTIONS} options and the player picks any. Give each option a short meaning of at most six words.`,
   'A text question is answered in the player own words. A number question has a minimum and a maximum.',
   'Players can always answer in their own words, so options are suggestions, not limits.',
-  `Questions are short, in the second person, at most ${SESSION_ZERO_PROMPT} characters each.`,
+  `The prompt is the title the player sees: one short sentence in the second person, at most ${SESSION_ZERO_PROMPT} characters. Never longer: cut the situation, keep the question.`,
   'Write in the language of the system.',
 ].join('\n');
+
+const title = z
+  .string()
+  .min(1)
+  .max(SESSION_ZERO_PROMPT)
+  .describe(`Question title, at most ${SESSION_ZERO_PROMPT} characters.`);
 
 const option = z.object({
   option: z.string().min(1).max(120),
@@ -38,16 +44,16 @@ const option = z.object({
 const draftSchema = z.union([
   z.object({
     format: z.enum(['single', 'multiple']),
-    prompt: z.string().min(1).max(SESSION_ZERO_PROMPT),
+    prompt: title,
     options: z.array(option).min(2).max(SESSION_ZERO_OPTIONS),
   }),
   z.object({
     format: z.literal('text'),
-    prompt: z.string().min(1).max(SESSION_ZERO_PROMPT),
+    prompt: title,
   }),
   z.object({
     format: z.literal('number'),
-    prompt: z.string().min(1).max(SESSION_ZERO_PROMPT),
+    prompt: title,
     min: z.number().int(),
     max: z.number().int(),
   }),
