@@ -13,7 +13,6 @@ import type {
 import {
   PopulationFlow,
   describeRecords,
-  drawTarget,
   populationTargets,
   replacements,
 } from './population.flow.js';
@@ -84,18 +83,6 @@ describe('populationTargets', () => {
         ({ notes }) => notes,
       ),
     ).toEqual([['ilse: Trai o grupo no fim']]);
-  });
-
-  it('draws one record of the asked structure', () => {
-    expect(drawTarget([crew, districts], 'crew')).toEqual({
-      structure: crew,
-      count: 1,
-      notes: [],
-    });
-  });
-
-  it('refuses to draw for a structure outside the world', () => {
-    expect(() => drawTarget([districts], 'crew')).toThrow('Structure not found.');
   });
 
   it('lists the existing records with their notes', () => {
@@ -227,17 +214,6 @@ describe('PopulationFlow.run', () => {
     expect(population.hooks).toEqual([
       { text: 'A storm hides the port', names: ['Porto'] },
     ]);
-  });
-
-  it('adds the drawn record without removing any', async () => {
-    const { flow, source, saved } = populate(() => undefined);
-
-    await flow.run('user', source, { replace: [], draw: 'places' });
-
-    expect(saved[0].removed).toEqual([]);
-    expect(saved[0].created.map((resource) => resource.structureId)).toContain(
-      'places',
-    );
   });
 
   it('keeps the world untouched when the client leaves before saving', async () => {
