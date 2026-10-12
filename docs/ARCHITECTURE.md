@@ -98,9 +98,9 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 
 - `system_drafts` = sistema em montagem no onboarding. Nada vai para as tabelas reais até o commit. Dono em `owner_id`; vários incompletos por usuário.
 - `status`: `incomplete` | `complete`. `system_id` preenchido no commit.
-- Seções em `jsonb`: `progress` (estado do front para retomar), `system`, `options` (3 campanhas `{ option, world }`), `structure_tags`, `field_tags`, `structures`, `resources`, `hooks`, `questions`, `character`. Ids de estruturas, registros e tags já são uuid e entram iguais no commit.
-- Rotas em `/api/system-drafts`: `GET` (incompletos), `GET tags` (tags globais), `GET/PATCH/DELETE :id`, `POST` (cria), `POST :id/commit` (transação: system + membro dono, tags, estruturas + links, registros, personagem, sessão zero; marca `complete`).
-- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, só sinopse, grava `options` com `world: null`), `structures` (NDJSON), `population`, `session-zero/questions`, `character-options`, `character-draft`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
+- Seções em `jsonb`: `progress` (estado do front para retomar), `system`, `options` (3 campanhas `{ option, world }`), `structure_tags`, `field_tags`, `structures`, `resources`, `hooks`, `questions`. Ids de estruturas, registros e tags já são uuid e entram iguais no commit.
+- Rotas em `/api/system-drafts`: `GET` (incompletos), `GET tags` (tags globais), `GET/PATCH/DELETE :id`, `POST` (cria), `POST :id/commit` (transação: system + membro dono, tags, estruturas + links, registros, sessão zero; marca `complete`).
+- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (3 campanhas em paralelo, só sinopse, grava `options` com `world: null`), `structures` (NDJSON), `population`, `session-zero/questions`. Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
 - Chamadas ao OpenRouter: no máximo 8 simultâneas por key (`KeyedLimiter`), resto em fila.
 
 ## Structures
@@ -165,20 +165,14 @@ docs                      PRODUCT.md, ARCHITECTURE.md
   - `POST /api/ai/campaign-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem system. Não salva.
 - Flows em `/api/ai/systems/:systemId/`:
   - `POST campaign-start` → IA cria campanha local no mundo da system (contexto: system + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
-  - `POST structures` (`{ themes, structures, kept?, replaced? }`) → NDJSON, uma proposta `{ name, icon, tagIds, aiNote, fields }` por linha conforme a IA gera (máx. 14). IA já escreve nota curta pro Oráculo na estrutura e em cada campo (`aiNote`: frase ≤ 12 palavras + 2–3 palavras-chave, `frase · a, b, c`; vazia no campo → sem `aiNote`). `kept` (`{ name, tags }`, travadas no front) nunca voltam; com `replaced` a IA gera exatamente essa quantidade de novas, diferentes das travadas e das substituídas. Não salva.
-  - `POST population` (`{ replace?, request? }`) → `{ resources, hooks }`. Contexto lista fichas existentes com a nota (`- Nome (Estrutura): aiNote`). `replace` refaz essas fichas por structure; notas das substituídas vão no pedido como orientação pras novas. Salva via `WorldSource.replaceResources`.
-  - `POST character-options` → 3 sugestões `{ name, role, hook, traits }`. Contexto: system (nome, descrição, structures). Exige structure de actors (`400`). Não salva.
-  - `POST character-draft` (`{ concept? }`) → `{ name, fields, values }`. Contexto: system. Exige structure de actors (`400`). Structure com fields preenchíveis → IA só preenche (schema montado dos fields: chave = label em slug, choice/boxes viram `enum`). Sem fields → IA cria `number`, `progress`, `short-text`, `long-text`, `choice` com valor; `field-layout.ts` posiciona abaixo dos existentes (12 colunas). Não salva.
+  - `POST structures` (`{ themes, structures, kept?, replaced? }`) → NDJSON, uma proposta `{ name, icon, tagIds, aiNote, fields }` por linha conforme a IA gera (3–4 estruturas, 2–4 campos cada; máx. 4, campos além de 4 cortados). IA já escreve nota curta pro Oráculo na estrutura e em cada campo (`aiNote`: frase ≤ 12 palavras + 2–3 palavras-chave, `frase · a, b, c`; vazia no campo → sem `aiNote`). `kept` (`{ name, tags }`, travadas no front) nunca voltam; com `replaced` a IA gera exatamente essa quantidade de novas, diferentes das travadas e das substituídas. Não salva.
+  - `POST population` (`{ replace?, request? }`) → `{ resources, hooks }`. Gera 2–3 fichas por structure do mundo; `request` gera no máx. 4. Contexto lista fichas existentes com a nota (`- Nome (Estrutura): aiNote`). `replace` refaz essas fichas por structure; notas das substituídas vão no pedido como orientação pras novas. Salva via `WorldSource.replaceResources`.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.
 
 ## Campaigns
 
 - `campaigns` = campanha da system. `system_id` unique (1 por system, cascade). `title`, `premise`, `brief` (`jsonb`, `campaignBriefSchema`: `opening`, `setting`, `culture`, `politics`, `tone`, `localTheme`, `hook`, `problem`, `escalation`, `complications[]`, `npcs[{ name, role, description }]`).
 - Rotas em `/api/systems/:systemId/campaign`: `GET` (campanha ou `null`, quem vê a system), `POST` (só dono; já existe → `409`), `PUT` (só dono; cria ou substitui).
-
-## Characters
-
-- `POST /api/systems/:systemId/characters` (`{ name, fields, values }`, só dono): numa transação adiciona `fields` novos à structure de actors (ids novos, senão `400`), cria a ficha com `values` validados e põe o dono no controle (`member_resources`). Sem structure de actors → `400`.
 
 ## Catálogos
 

@@ -9,7 +9,6 @@ import {
 import { users } from '../auth/auth.schema.js';
 import { systems } from '../systems/systems.schema.js';
 import type {
-  DraftCharacter,
   DraftHook,
   DraftOption,
   DraftQuestion,
@@ -59,7 +58,6 @@ export const systemDrafts = pgTable(
       .$type<DraftQuestion[]>()
       .notNull()
       .default([]),
-    character: jsonb('character').$type<DraftCharacter>(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -1,6 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
 import type {
-  DraftCharacter,
   DraftResource,
   DraftStructure,
   DraftTag,
@@ -40,41 +38,4 @@ export function takenSlugs(
       seen.add(slug);
       return taken;
     });
-}
-
-export function withCharacterFields(
-  structures: readonly DraftStructure[],
-  actorsTagId: string | undefined,
-  character: DraftCharacter,
-): { structures: DraftStructure[]; actors: DraftStructure } {
-  const actors = structures.find(
-    (structure) =>
-      actorsTagId !== undefined && structure.tagIds.includes(actorsTagId),
-  );
-
-  if (!actors) {
-    throw new BadRequestException({
-      code: 'ACTORS_MISSING',
-      message: 'Tag a structure as Actors first.',
-    });
-  }
-
-  const current = actors.fields ?? [];
-  const taken = new Set(current.map((field) => field.id));
-
-  if (character.fields.some((field) => taken.has(field.id))) {
-    throw new BadRequestException({
-      code: 'FIELD_IDS_REUSED',
-      message: 'New fields need new ids.',
-    });
-  }
-
-  const merged = { ...actors, fields: [...current, ...character.fields] };
-
-  return {
-    structures: structures.map((structure) =>
-      structure.id === actors.id ? merged : structure,
-    ),
-    actors: merged,
-  };
 }

@@ -1,11 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import type { DraftStructure } from './dto/system-draft.dto.js';
 import {
   orphanResources,
   takenSlugs,
   unknownTagIds,
-  withCharacterFields,
 } from './system-draft-commit.js';
 
 const field = (id: string) => ({
@@ -62,40 +60,5 @@ describe('takenSlugs', () => {
         ['atores'],
       ),
     ).toEqual(['atores', 'rivais']);
-  });
-});
-
-describe('withCharacterFields', () => {
-  const character = { name: 'Ana', fields: [field('oath')], values: {} };
-
-  it('appends the character fields to the first actors structure', () => {
-    const { structures, actors } = withCharacterFields(
-      [structure('places'), structure('crew', ['actors'])],
-      'actors',
-      character,
-    );
-
-    expect(actors.id).toBe('crew');
-    expect(actors.fields?.map((current) => current.id)).toEqual([
-      'crew-name',
-      'oath',
-    ]);
-    expect(structures[1]).toBe(actors);
-  });
-
-  it('needs a structure tagged as actors', () => {
-    expect(() =>
-      withCharacterFields([structure('places')], 'actors', character),
-    ).toThrow(BadRequestException);
-  });
-
-  it('rejects field ids the structure already has', () => {
-    expect(() =>
-      withCharacterFields(
-        [structure('crew', ['actors'], [field('oath')])],
-        'actors',
-        character,
-      ),
-    ).toThrow(BadRequestException);
   });
 });

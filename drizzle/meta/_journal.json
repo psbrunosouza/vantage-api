@@ -183,6 +183,13 @@
       "when": 1791760899487,
       "tag": "0025_resource_ai_note",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791773668695,
+      "tag": "0026_drop_draft_character",
+      "breakpoints": true
     }
   ]
 }

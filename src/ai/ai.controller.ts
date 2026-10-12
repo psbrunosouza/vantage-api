@@ -18,10 +18,6 @@ import type { Auth } from '../auth/auth.js';
 import { streamLines } from '../common/ndjson.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { AiService } from './ai.service.js';
-import {
-  type CharacterDraftDto,
-  characterDraftSchema,
-} from './dto/character-draft.dto.js';
 import { type PopulationDto, populationSchema } from './dto/population.dto.js';
 import {
   type StructureProposalsDto,
@@ -36,8 +32,6 @@ import {
   updateAiSettingsSchema,
 } from './dto/update-ai-settings.dto.js';
 import { CampaignStartFlow } from './flows/campaign-start.flow.js';
-import { CharacterDraftFlow } from './flows/character-draft.flow.js';
-import { CharacterOptionsFlow } from './flows/character-options.flow.js';
 import { NarrationFlow } from './flows/narration.flow.js';
 import { PopulationFlow } from './flows/population.flow.js';
 import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
@@ -53,8 +47,6 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly campaignOptionsFlow: CampaignOptionsFlow,
     private readonly campaignStartFlow: CampaignStartFlow,
-    private readonly characterOptionsFlow: CharacterOptionsFlow,
-    private readonly characterDraftFlow: CharacterDraftFlow,
     private readonly narrationFlow: NarrationFlow,
     private readonly structureProposalsFlow: StructureProposalsFlow,
     private readonly populationFlow: PopulationFlow,
@@ -183,48 +175,6 @@ export class AiController {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
     return this.populationFlow.run(userId, source, dto);
-  }
-
-  @Post('systems/:systemId/character-options')
-  async characterOptions(
-    @Session() session: UserSession<Auth>,
-    @Param('systemId', ParseUUIDPipe) systemId: string,
-  ) {
-    const userId = session.user.id;
-    const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.characterOptionsFlow.run(userId, source);
-  }
-
-  @Post('system-drafts/:draftId/character-options')
-  async draftCharacterOptions(
-    @Session() session: UserSession<Auth>,
-    @Param('draftId', ParseUUIDPipe) draftId: string,
-  ) {
-    const userId = session.user.id;
-    const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.characterOptionsFlow.run(userId, source);
-  }
-
-  @Post('systems/:systemId/character-draft')
-  async characterDraft(
-    @Session() session: UserSession<Auth>,
-    @Param('systemId', ParseUUIDPipe) systemId: string,
-    @Body(new ZodValidationPipe(characterDraftSchema)) dto: CharacterDraftDto,
-  ) {
-    const userId = session.user.id;
-    const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.characterDraftFlow.run(userId, source, dto.concept);
-  }
-
-  @Post('system-drafts/:draftId/character-draft')
-  async draftCharacterDraft(
-    @Session() session: UserSession<Auth>,
-    @Param('draftId', ParseUUIDPipe) draftId: string,
-    @Body(new ZodValidationPipe(characterDraftSchema)) dto: CharacterDraftDto,
-  ) {
-    const userId = session.user.id;
-    const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.characterDraftFlow.run(userId, source, dto.concept);
   }
 
   @Post('systems/:systemId/play-sessions/:sessionId/narration')

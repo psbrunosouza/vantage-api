@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { campaignOptionSchema } from '../../ai/flows/campaign-options.flow.js';
 import { createSystemSchema } from '../../systems/dto/create-system.dto.js';
-import { createCharacterSchema } from '../../resources/dto/create-character.dto.js';
 import { AI_NOTE_LENGTH } from '../../resources/dto/create-resource.dto.js';
 import { sessionZeroQuestionSchema } from '../../session-zero/dto/replace-questions.dto.js';
 import { createStructureSchema } from '../../structures/dto/create-structure.dto.js';
@@ -51,7 +50,6 @@ export const systemDraftSchema = z
     resources: z.array(draftResourceSchema),
     hooks: z.array(draftHookSchema),
     questions: z.array(sessionZeroQuestionSchema).max(20),
-    character: createCharacterSchema.nullable(),
   })
   .partial();
 
@@ -63,5 +61,4 @@ export type DraftWorld = z.infer<typeof draftWorldSchema>;
 export type DraftOption = z.infer<typeof draftOptionSchema>;
 export type DraftSystem = z.infer<typeof draftSystemSchema>;
 export type DraftQuestion = z.infer<typeof sessionZeroQuestionSchema>;
-export type DraftCharacter = z.infer<typeof createCharacterSchema>;
 export type SystemDraftDto = z.infer<typeof systemDraftSchema>;

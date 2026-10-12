@@ -11,13 +11,11 @@ import { DATABASE } from '../database/database.module.js';
 import { createSystemSchema } from '../systems/dto/create-system.dto.js';
 import type { System } from '../systems/systems.schema.js';
 import { SystemsService } from '../systems/systems.service.js';
-import { memberResources } from '../members/members.schema.js';
 import { parseResourceValues } from '../resources/resource-values.js';
 import { resources } from '../resources/resources.schema.js';
 import { sessionZeroQuestions } from '../session-zero/session-zero.schema.js';
 import { foreignStructureIds } from '../session-zero/session-zero.service.js';
 import { structures } from '../structures/structures.schema.js';
-import { ACTORS_SLUG } from '../tags/actors.js';
 import { fieldTags } from '../tags/field-tags.schema.js';
 import {
   structureTagLinks,
@@ -32,7 +30,6 @@ import {
   orphanResources,
   takenSlugs,
   unknownTagIds,
-  withCharacterFields,
 } from './system-draft-commit.js';
 import { type SystemDraft, systemDrafts } from './system-drafts.schema.js';
 
@@ -161,14 +158,8 @@ export class SystemDraftsService {
       throw new BadRequestException(STRUCTURE_NOT_FOUND);
     }
 
-    const actorsTagId = globalStructureTags.find(
-      (tag) => tag.slug === ACTORS_SLUG,
-    )?.id;
-    const world = draft.character
-      ? withCharacterFields(draft.structures, actorsTagId, draft.character)
-      : { structures: draft.structures, actors: null };
     const fieldsOf = new Map(
-      world.structures.map((structure) => [
+      draft.structures.map((structure) => [
         structure.id,
         structure.fields ?? [],
       ]),
@@ -202,9 +193,9 @@ export class SystemDraftsService {
         );
       }
 
-      if (world.structures.length > 0) {
+      if (draft.structures.length > 0) {
         await tx.insert(structures).values(
-          world.structures.map((structure) => ({
+          draft.structures.map((structure) => ({
             id: structure.id,
             name: structure.name,
             icon: structure.icon,
@@ -215,7 +206,7 @@ export class SystemDraftsService {
           })),
         );
 
-        const links = world.structures.flatMap(linksOf);
+        const links = draft.structures.flatMap(linksOf);
 
         if (links.length > 0) {
           await tx.insert(structureTagLinks).values(links);
@@ -232,24 +223,6 @@ export class SystemDraftsService {
             ),
           })),
         );
-      }
-
-      if (draft.character && world.actors) {
-        const [character] = await tx
-          .insert(resources)
-          .values({
-            structureId: world.actors.id,
-            name: draft.character.name,
-            values: parseResourceValues(
-              world.actors.fields ?? [],
-              draft.character.values,
-            ),
-          })
-          .returning();
-
-        await tx
-          .insert(memberResources)
-          .values({ resourceId: character.id, systemId, userId: ownerId });
       }
 
       if (draft.questions.length > 0) {

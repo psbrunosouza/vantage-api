@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,7 +7,6 @@ import { and, asc, eq, getTableColumns, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
 import { SystemsService } from '../systems/systems.service.js';
-import { memberResources } from '../members/members.schema.js';
 import { MembersService } from '../members/members.service.js';
 import { links } from '../links/links.schema.js';
 import { keyOf, tableRowIds } from '../links/relation-columns.js';
@@ -18,8 +16,6 @@ import {
 } from '../storage/image-storage.service.js';
 import type { StructureField } from '../structures/structure-field.js';
 import { structures } from '../structures/structures.schema.js';
-import { hasActorsTag } from '../tags/actors.js';
-import type { CreateCharacterDto } from './dto/create-character.dto.js';
 import type { CreateResourceDto } from './dto/create-resource.dto.js';
 import type { UpdateResourceDto } from './dto/update-resource.dto.js';
 import { parseResourceValues } from './resource-values.js';
@@ -105,65 +101,6 @@ export class ResourcesService {
           ),
         ),
       );
-  }
-
-  async createCharacter(
-    userId: string,
-    systemId: string,
-    dto: CreateCharacterDto,
-  ): Promise<Resource> {
-    await this.systemsService.ensureOwner(userId, systemId);
-
-    return this.db.transaction(async (tx) => {
-      const [actors] = await tx
-        .select({ id: structures.id, fields: structures.fields })
-        .from(structures)
-        .where(
-          and(eq(structures.systemId, systemId), hasActorsTag(structures.id)),
-        )
-        .orderBy(asc(structures.createdAt))
-        .limit(1);
-
-      if (!actors) {
-        throw new BadRequestException({
-          code: 'ACTORS_MISSING',
-          message: 'Tag a structure as Actors first.',
-        });
-      }
-
-      const taken = new Set(actors.fields.map((field) => field.id));
-
-      if (dto.fields.some((field) => taken.has(field.id))) {
-        throw new BadRequestException({
-          code: 'FIELD_IDS_REUSED',
-          message: 'New fields need new ids.',
-        });
-      }
-
-      const fields = [...actors.fields, ...dto.fields];
-
-      if (dto.fields.length > 0) {
-        await tx
-          .update(structures)
-          .set({ fields })
-          .where(eq(structures.id, actors.id));
-      }
-
-      const [resource] = await tx
-        .insert(resources)
-        .values({
-          structureId: actors.id,
-          name: dto.name,
-          values: parseResourceValues(fields, dto.values),
-        })
-        .returning();
-
-      await tx
-        .insert(memberResources)
-        .values({ resourceId: resource.id, systemId, userId });
-
-      return resource;
-    });
   }
 
   async update(
