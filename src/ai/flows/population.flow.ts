@@ -11,6 +11,7 @@ import {
   describeCampaign,
   describeFields,
   describeSystem,
+  describeValues,
   fillableFields,
 } from '../system-context.js';
 import type {
@@ -31,6 +32,8 @@ const PROMPT = [
   'Make them concrete: players must be able to visit, fight, steal, talk to or use each one.',
   'Give each record only its proper name, such as "Ivan", "Ana Clara Duarte" or "Valdoria", never a title or epithet such as "Ivan, o Terrível". Titles, nicknames and roles go in the fields.',
   'Items and equipment must exist in the era and technology of the world.',
+  'Records relate to each other, also across structures, with friendship, alliance, neutrality, rivalry, hatred or prejudice: two kings plot to kill each other, two groups are at war, a city despises another. Mix these stances, since they create the gameplay.',
+  'Write the relationships in the text fields, mainly the description, naming the other records: the ones you create now, the ones that already exist or the names the campaign gives.',
   'Records of the structure with the atores tag are ready-to-play characters: each one has a clear concept that fits the campaign and the other characters.',
   'Never repeat a record that already exists.',
   'Fill every field. Numbers must be balanced for the start of the campaign.',
@@ -39,7 +42,7 @@ const PROMPT = [
 
 const HOOKS_PROMPT = [
   'You write loose story hooks for a tabletop RPG played in Vantage.',
-  `Write ${HOOKS} hooks. Each one is a short question or rumor, at most 20 words, that ties two or more records together and gives the players something to chase.`,
+  `Write ${HOOKS} hooks. Each one is a short question or rumor, at most 20 words, that ties two or more records together, preferably through their relationships, and gives the players something to chase.`,
   'List the exact names of the records each hook mentions.',
   'Write in the language of the system.',
 ].join('\n');
@@ -370,16 +373,23 @@ export class PopulationFlow {
 
 export function describeRecords(
   world: readonly WorldStructure[],
-  resources: readonly Pick<WorldResource, 'name' | 'structureId' | 'aiNote'>[],
+  resources: readonly Pick<
+    WorldResource,
+    'name' | 'structureId' | 'aiNote' | 'values'
+  >[],
 ): string {
   const lines = world.flatMap((structure) =>
     resources
       .filter((resource) => resource.structureId === structure.id)
-      .map((resource) =>
-        resource.aiNote
+      .map((resource) => {
+        const header = resource.aiNote
           ? `- ${resource.name} (${structure.name}): ${resource.aiNote}`
-          : `- ${resource.name} (${structure.name})`,
-      ),
+          : `- ${resource.name} (${structure.name})`;
+        const values = describeValues(structure.fields, resource.values);
+
+        return values ? `${header}
+${values.replace(/^/gm, '  ')}` : header;
+      }),
   );
 
   return lines.length > 0

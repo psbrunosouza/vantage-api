@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { StructureField } from '../../structures/structure-field.js';
 import type { StructureView } from '../../structures/structure-view.js';
 import type { StructureTag } from '../../tags/structure-tags.schema.js';
 import type { WorldResource } from '../world-source.js';
@@ -11,16 +12,21 @@ import {
 const ACTORS = { systemId: null, slug: 'atores' } as StructureTag;
 const PLACES = { systemId: null, slug: 'locais' } as StructureTag;
 
-function structure(id: string, tags: StructureTag[]): StructureView {
-  return { id, name: id, tags } as unknown as StructureView;
+function structure(
+  id: string,
+  tags: StructureTag[],
+  fields: StructureField[] = [],
+): StructureView {
+  return { id, name: id, tags, fields } as unknown as StructureView;
 }
 
 function record(
   id: string,
   structureId: string,
   aiNote: string | null = null,
+  values: WorldResource['values'] = {},
 ): WorldResource {
-  return { id, structureId, name: id, values: {}, aiNote };
+  return { id, structureId, name: id, values, aiNote };
 }
 
 describe('populationTargets', () => {
@@ -79,6 +85,33 @@ describe('populationTargets', () => {
       ),
     ).toBe(
       'Records that already exist:\n- ilse (figures): Trai o grupo no fim\n- tower (districts)',
+    );
+  });
+
+  it('lists the values of the existing records, such as their relationships', () => {
+    const description: StructureField = {
+      id: 'description',
+      type: 'long-text',
+      label: 'Descrição',
+      options: [],
+      column: 1,
+      row: 1,
+      span: 3,
+      rows: 2,
+    };
+    const kings = structure('kings', [], [description]);
+
+    expect(
+      describeRecords(
+        [kings],
+        [
+          record('ivan', 'kings', null, {
+            description: 'Odeia Boris e quer a coroa dele',
+          }),
+        ],
+      ),
+    ).toBe(
+      'Records that already exist:\n- ivan (kings)\n  Descrição: Odeia Boris e quer a coroa dele',
     );
   });
 });
