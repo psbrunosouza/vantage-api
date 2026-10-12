@@ -9,18 +9,20 @@ import type { StructureProposalsDto } from '../dto/structure-proposals.dto.js';
 import type { WorldSource } from '../world-source.js';
 import { STRUCTURE_ICONS } from './campaign-options.flow.js';
 
-const MIN_STRUCTURES = 6;
-const MAX_STRUCTURES = 14;
+const MIN_STRUCTURES = 3;
+const MAX_STRUCTURES = 4;
+const MIN_FIELDS = 2;
+const MAX_FIELDS = 4;
 const NOTE_WORDS = 12;
 const NOTE_LENGTH = 500;
 
 const PROMPT = [
   'You design the data model of a solo tabletop RPG played in Vantage.',
-  `Propose between ${MIN_STRUCTURES} and ${MAX_STRUCTURES} structures built from the campaign and its themes, as many as the world needs. A structure groups sheets of one kind, such as crew, places, factions, items or documents. Each name is a plural noun of one or two words.`,
+  `Propose between ${MIN_STRUCTURES} and ${MAX_STRUCTURES} structures built from the campaign and its themes: only the core ones the game needs to start, since the world grows during play. A structure groups sheets of one kind, such as crew, places, factions, items or documents. Each name is a plural noun of one or two words.`,
   'The first structure holds the player characters and has the atores tag. Name it after who the players are in this world, such as crew, party or squad.',
-  'When the system lists suggested structures, prefer them and complete the set.',
+  'When the system lists suggested structures, prefer the most essential of them.',
   'Give each structure one or more structure tags from the list, using their slugs. The description of a tag says what it means for the game master.',
-  'Give each structure four to eight fields. A field has a label, a type and, when it fits, one or more field tags from the list, using their slugs. A choice field also lists its options.',
+  `Give each structure ${MIN_FIELDS} to ${MAX_FIELDS} fields, only the essential ones. A field has a label, a type and, when it fits, one or more field tags from the list, using their slugs. A choice field also lists its options.`,
   'Use progress for meters such as health or pressure. Never propose relations to other structures.',
   `Give each structure and each field a note for the oracle that explains what it means in this world: one short sentence of at most ${NOTE_WORDS} words, then two or three keywords, as in "Quem os jogadores controlam · sobrevivência, grupo, confiança".`,
   'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
@@ -101,13 +103,15 @@ export function proposalOf(
   structureTags: readonly ProposalTag[],
   fieldTags: readonly ProposalTag[],
 ): StructureProposal {
+  const fields = structure.fields.slice(0, MAX_FIELDS);
+
   return {
     name: structure.name,
     icon: structure.icon,
     tagIds: idsOf(structureTags, structure.tags),
     aiNote: noteOf(structure.note),
-    fields: layoutFields([], structure.fields).map((field, index) => {
-      const draft = structure.fields[index];
+    fields: layoutFields([], fields).map((field, index) => {
+      const draft = fields[index];
       const aiNote = noteOf(draft.note);
 
       return {

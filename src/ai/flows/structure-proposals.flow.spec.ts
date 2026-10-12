@@ -64,4 +64,27 @@ describe('proposalOf', () => {
     });
     expect(proposal.fields[1]).not.toHaveProperty('aiNote');
   });
+
+  it('keeps at most four fields', () => {
+    const proposal = proposalOf(
+      {
+        name: 'Facções',
+        icon: 'users',
+        tags: [],
+        note: '',
+        fields: ['Nome', 'Líder', 'Poder', 'Território', 'Segredo'].map(
+          (label) => ({ type: 'short-text' as const, label, tags: [], options: [], note: '' }),
+        ),
+      },
+      structureTags,
+      fieldTags,
+    );
+
+    expect(proposal.fields.map((field) => field.label)).toEqual([
+      'Nome',
+      'Líder',
+      'Poder',
+      'Território',
+    ]);
+  });
 });
