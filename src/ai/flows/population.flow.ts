@@ -20,8 +20,8 @@ import type {
   WorldStructure,
 } from '../world-source.js';
 
-const RECORDS = { min: 6, max: 10 };
-const REQUESTED = 8;
+const RECORDS = { min: 2, max: 3 };
+const REQUESTED = 4;
 const HOOKS = 3;
 
 const PROMPT = [
