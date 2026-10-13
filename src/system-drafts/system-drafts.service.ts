@@ -195,7 +195,6 @@ export class SystemDraftsService {
             name: structure.name,
             icon: structure.icon,
             color: structure.color,
-            aiNote: structure.aiNote,
             fields: structure.fields ?? [],
             systemId,
           })),

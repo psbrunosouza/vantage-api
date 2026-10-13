@@ -19,7 +19,6 @@ export const resources = pgTable(
       .references(() => structures.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     values: jsonb('values').$type<ResourceValues>().notNull().default({}),
-    aiNote: text('ai_note'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

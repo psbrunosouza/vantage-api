@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { campaignOptionSchema } from '../../ai/flows/campaign-options.flow.js';
 import { createSystemSchema } from '../../systems/dto/create-system.dto.js';
-import { AI_NOTE_LENGTH } from '../../resources/dto/create-resource.dto.js';
 import { sessionZeroQuestionSchema } from '../../session-zero/dto/replace-questions.dto.js';
 import { createStructureSchema } from '../../structures/dto/create-structure.dto.js';
 import { createTagSchema } from '../../tags/dto/create-tag.dto.js';
@@ -20,18 +19,11 @@ export const draftResourceSchema = z.object({
   structureId: z.uuid(),
   name: z.string().min(1),
   values: z.record(z.string(), z.unknown()).default({}),
-  aiNote: z.string().trim().max(AI_NOTE_LENGTH).nullable().optional(),
-});
-
-export const draftHookSchema = z.object({
-  text: z.string().min(1),
-  names: z.array(z.string()),
 });
 
 export const draftWorldSchema = z.object({
   structures: z.array(draftStructureSchema),
   resources: z.array(draftResourceSchema),
-  hooks: z.array(draftHookSchema),
 });
 
 export const draftOptionSchema = z.object({
@@ -48,7 +40,6 @@ export const systemDraftSchema = z
     fieldTags: z.array(draftTagSchema),
     structures: z.array(draftStructureSchema),
     resources: z.array(draftResourceSchema),
-    hooks: z.array(draftHookSchema),
     questions: z.array(sessionZeroQuestionSchema),
   })
   .partial();
@@ -56,7 +47,6 @@ export const systemDraftSchema = z
 export type DraftTag = z.infer<typeof draftTagSchema>;
 export type DraftStructure = z.infer<typeof draftStructureSchema>;
 export type DraftResource = z.infer<typeof draftResourceSchema>;
-export type DraftHook = z.infer<typeof draftHookSchema>;
 export type DraftWorld = z.infer<typeof draftWorldSchema>;
 export type DraftOption = z.infer<typeof draftOptionSchema>;
 export type DraftSystem = z.infer<typeof draftSystemSchema>;

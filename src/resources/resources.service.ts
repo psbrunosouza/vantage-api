@@ -74,7 +74,6 @@ export class ResourcesService {
         structureId,
         name: dto.name,
         values: parseResourceValues(structure.fields, dto.values ?? {}),
-        aiNote: dto.aiNote ?? null,
       })
       .returning();
     return resource;

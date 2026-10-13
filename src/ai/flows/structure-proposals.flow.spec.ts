@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
+import type { StructureField } from '../../structures/structure-field.js';
 import { lockedLines, proposalOf } from './structure-proposals.flow.js';
 
 const dto = (
   kept: { name: string; tags: string[] }[],
-  replaced: string[],
+  replaced: { name: string; fields: StructureField[] }[],
 ) => ({ themes: [], structures: [], kept, replaced });
+
+const debt: StructureField = {
+  id: 'debt',
+  type: 'progress',
+  label: 'Dívida',
+  options: [],
+  column: 1,
+  row: 1,
+  span: 2,
+  rows: 1,
+};
 
 describe('lockedLines', () => {
   it('adds nothing when no structure is locked', () => {
@@ -19,12 +31,15 @@ describe('lockedLines', () => {
             { name: 'Tripulação', tags: ['atores'] },
             { name: 'Contratos', tags: [] },
           ],
-          ['Distritos', 'Facções'],
+          [
+            { name: 'Distritos', fields: [] },
+            { name: 'Facções', fields: [debt] },
+          ],
         ),
       ),
     ).toEqual([
       'Kept structures:\n- Tripulação (atores)\n- Contratos',
-      'Structures to replace with 2 new ones: Distritos, Facções',
+      'Structures to replace with 2 new ones, in this order:\n- Distritos\n- Facções (keeps the fields Dívida)',
     ]);
   });
 });
@@ -33,22 +48,15 @@ describe('proposalOf', () => {
   const structureTags = [{ id: 'tag-atores', slug: 'atores' }];
   const fieldTags = [{ id: 'tag-vida', slug: 'vida' }];
 
-  it('keeps the oracle notes of the structure and of each field', () => {
+  it('resolves the tags of the structure and of each field', () => {
     const proposal = proposalOf(
       {
         name: 'Sobreviventes',
         icon: 'users',
         tags: ['atores', 'desconhecida'],
-        note: '  Quem os jogadores controlam · sobrevivência, grupo  ',
         fields: [
-          {
-            type: 'progress',
-            label: 'Vida',
-            tags: ['vida'],
-            options: [],
-            note: 'Zera quando cai · dano, cura',
-          },
-          { type: 'short-text', label: 'Nome', tags: [], options: [], note: ' ' },
+          { type: 'progress', label: 'Vida', tags: ['vida'], options: [] },
+          { type: 'short-text', label: 'Nome', tags: [], options: [] },
         ],
       },
       structureTags,
@@ -56,13 +64,29 @@ describe('proposalOf', () => {
     );
 
     expect(proposal.tagIds).toEqual(['tag-atores']);
-    expect(proposal.aiNote).toBe('Quem os jogadores controlam · sobrevivência, grupo');
-    expect(proposal.fields[0]).toMatchObject({
-      label: 'Vida',
-      tagIds: ['tag-vida'],
-      aiNote: 'Zera quando cai · dano, cura',
-    });
-    expect(proposal.fields[1]).not.toHaveProperty('aiNote');
+    expect(proposal.fields[0]).toMatchObject({ label: 'Vida', tagIds: ['tag-vida'] });
+    expect(proposal).not.toHaveProperty('aiNote');
+  });
+
+  it('keeps the locked fields of the replaced structure first, without repeating them', () => {
+    const proposal = proposalOf(
+      {
+        name: 'Bando',
+        icon: 'users',
+        tags: [],
+        fields: [
+          { type: 'progress', label: 'dívida', tags: [], options: [] },
+          { type: 'short-text', label: 'Lema', tags: [], options: [] },
+        ],
+      },
+      structureTags,
+      fieldTags,
+      [debt],
+    );
+
+    expect(proposal.fields.map((field) => field.label)).toEqual(['Dívida', 'Lema']);
+    expect(proposal.fields[0]).toBe(debt);
+    expect(proposal.fields[1].row).toBe(2);
   });
 
   it('keeps at most four fields', () => {
@@ -71,9 +95,8 @@ describe('proposalOf', () => {
         name: 'Facções',
         icon: 'users',
         tags: [],
-        note: '',
         fields: ['Nome', 'Líder', 'Poder', 'Território', 'Segredo'].map(
-          (label) => ({ type: 'short-text' as const, label, tags: [], options: [], note: '' }),
+          (label) => ({ type: 'short-text' as const, label, tags: [], options: [] }),
         ),
       },
       structureTags,
@@ -105,14 +128,12 @@ describe('proposalOf', () => {
         name: 'Heróis',
         icon: 'users',
         tags: ['atores'],
-        note: '',
         fields: labels.map((label) => ({
           type: 'number' as const,
           label,
           tags: [],
           options: [],
-          note: '',
-        })),
+          })),
       },
       structureTags,
       fieldTags,

@@ -31,10 +31,9 @@ function structure(
 function record(
   id: string,
   structureId: string,
-  aiNote: string | null = null,
   values: WorldResource['values'] = {},
 ): WorldResource {
-  return { id, structureId, name: id, values, aiNote };
+  return { id, structureId, name: id, values };
 }
 
 describe('populationTargets', () => {
@@ -72,28 +71,13 @@ describe('populationTargets', () => {
     ).toEqual([['figures', 2, ['ilse', 'orin']]]);
   });
 
-  it('carries the oracle notes of the replaced records', () => {
-    const resources = [
-      record('ilse', 'figures', 'Trai o grupo no fim'),
-      record('orin', 'figures'),
-    ];
-
-    expect(
-      replacements([figures], resources, ['ilse', 'orin']).map(
-        ({ notes }) => notes,
-      ),
-    ).toEqual([['ilse: Trai o grupo no fim']]);
-  });
-
-  it('lists the existing records with their notes', () => {
+  it('lists the existing records by structure', () => {
     expect(
       describeRecords(
         [figures, districts],
-        [record('ilse', 'figures', 'Trai o grupo no fim'), record('tower', 'districts')],
+        [record('ilse', 'figures'), record('tower', 'districts')],
       ),
-    ).toBe(
-      'Records that already exist:\n- ilse (figures): Trai o grupo no fim\n- tower (districts)',
-    );
+    ).toBe('Records that already exist:\n- ilse (figures)\n- tower (districts)');
   });
 
   it('lists the values of the existing records, such as their relationships', () => {
@@ -113,7 +97,7 @@ describe('populationTargets', () => {
       describeRecords(
         [kings],
         [
-          record('ivan', 'kings', null, {
+          record('ivan', 'kings', {
             description: 'Odeia Boris e quer a coroa dele',
           }),
         ],
@@ -131,16 +115,14 @@ describe('PopulationFlow.run', () => {
     icon: 'map',
     color: null,
     fields: [],
-    aiNote: null,
     tags: [],
   } as unknown as WorldStructure;
 
-  function populate(onHooks: () => void) {
+  function populate(onRecords: () => void) {
     const saved: {
       removed: readonly string[];
       created: readonly NewResource[];
     }[] = [];
-    const hooked: string[] = [];
     const aiService = {
       credentialsOf: async (_userId: string, signal?: AbortSignal) => ({
         apiKey: 'key',
@@ -149,18 +131,8 @@ describe('PopulationFlow.run', () => {
       }),
     } as unknown as AiService;
     const runner = {
-      submit: async (
-        _credentials: unknown,
-        messages: { content: string }[],
-        output: { name: string },
-      ) => {
-        if (output.name === 'submit_hooks') {
-          hooked.push(messages[1].content);
-          onHooks();
-          return {
-            hooks: [{ text: 'A storm hides the port', names: ['Porto'] }],
-          };
-        }
+      submit: async () => {
+        onRecords();
 
         return {
           records: [
@@ -189,12 +161,11 @@ describe('PopulationFlow.run', () => {
       flow: new PopulationFlow(aiService, runner),
       source,
       saved,
-      hooked,
     };
   }
 
-  it('streams the new records and saves them with hooks about them', async () => {
-    const { flow, source, saved, hooked } = populate(() => undefined);
+  it('streams the new records and saves them', async () => {
+    const { flow, source, saved } = populate(() => undefined);
     const streamed: NewResource[] = [];
 
     const population = await flow.run('user', source, { replace: [] }, (records) =>
@@ -206,14 +177,10 @@ describe('PopulationFlow.run', () => {
       'Porto',
       'Ilha',
     ]);
-    expect(hooked[0]).toContain('- Porto (Places)');
     expect(streamed.map((resource) => resource.name)).toEqual(['Porto', 'Ilha']);
     expect(population.resources.map((resource) => resource.id)).toEqual(
       streamed.map((resource) => resource.id),
     );
-    expect(population.hooks).toEqual([
-      { text: 'A storm hides the port', names: ['Porto'] },
-    ]);
   });
 
   it('keeps the world untouched when the client leaves before saving', async () => {

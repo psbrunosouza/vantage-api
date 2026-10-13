@@ -10,7 +10,6 @@ export const structureFieldSchema = z.looseObject({
   rows: z.int(),
   options: z.array(z.string()),
   tagIds: z.array(z.string()).optional(),
-  aiNote: z.string().trim().max(500).optional(),
 });
 
 export type StructureField = z.infer<typeof structureFieldSchema>;

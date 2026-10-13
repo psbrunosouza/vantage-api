@@ -9,7 +9,6 @@ import {
 import { users } from '../auth/auth.schema.js';
 import { systems } from '../systems/systems.schema.js';
 import type {
-  DraftHook,
   DraftOption,
   DraftQuestion,
   DraftResource,
@@ -53,7 +52,6 @@ export const systemDrafts = pgTable(
       .$type<DraftResource[]>()
       .notNull()
       .default([]),
-    hooks: jsonb('hooks').$type<DraftHook[]>().notNull().default([]),
     questions: jsonb('questions')
       .$type<DraftQuestion[]>()
       .notNull()

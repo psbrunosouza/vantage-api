@@ -13,7 +13,6 @@ export const createStructureSchema = createInsertSchema(structures, {
     icon: true,
     color: true,
     fields: true,
-    aiNote: true,
   })
   .extend({ tagIds: z.array(z.uuid()).optional() });
 

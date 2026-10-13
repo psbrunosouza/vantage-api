@@ -32,12 +32,12 @@ export type WorldStructureTag = Pick<
 export type WorldFieldTag = Pick<FieldTag, 'id' | 'slug' | 'name' | 'description'>;
 export type WorldStructure = Pick<
   Structure,
-  'id' | 'name' | 'icon' | 'color' | 'fields' | 'aiNote'
+  'id' | 'name' | 'icon' | 'color' | 'fields'
 > & { tags: WorldStructureTag[] };
 export type WorldResource = Pick<
   Resource,
   'id' | 'structureId' | 'name' | 'values'
-> & { aiNote?: string | null };
+>;
 
 export interface NewResource {
   id: string;
@@ -113,7 +113,6 @@ export class WorldSources {
       world: {
         structures: draft.structures,
         resources: draft.resources,
-        hooks: draft.hooks,
       },
       save: async (world) => {
         await this.systemDraftsService.update(userId, draftId, {
@@ -166,7 +165,6 @@ export function draftStructures(
   return structures.map(({ tagIds, ...structure }) => ({
     ...structure,
     color: structure.color ?? null,
-    aiNote: structure.aiNote ?? null,
     fields: structure.fields ?? [],
     tags: tags.filter((tag) => tagIds.includes(tag.id)),
   }));

@@ -204,6 +204,13 @@
       "when": 1791925468642,
       "tag": "0028_system_pattern",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791934640332,
+      "tag": "0029_drop_ai_notes_and_hooks",
+      "breakpoints": true
     }
   ]
 }

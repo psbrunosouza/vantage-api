@@ -36,7 +36,6 @@ const world: DraftWorld = {
     { id: 'old', structureId: 'places', name: 'Porto', values: {} },
     { id: 'kept', structureId: 'places', name: 'Farol', values: {} },
   ],
-  hooks: [],
 };
 
 describe('draftStructures', () => {
@@ -45,7 +44,6 @@ describe('draftStructures', () => {
 
     expect(crew).toMatchObject({
       color: null,
-      aiNote: null,
       fields: [],
       tags: [actors],
     });

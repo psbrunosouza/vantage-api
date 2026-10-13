@@ -55,8 +55,7 @@ export function describeFields(
         const tag = fieldTags.find((candidate) => candidate.id === id);
         return tag ? [`@${tag.slug}: ${tag.description}`] : [];
       });
-      const notes = field.aiNote ? [`note: ${field.aiNote}`] : [];
-      const details = [kind, ...meanings, ...notes];
+      const details = [kind, ...meanings];
       return `${field.label} (${details.join('; ')})`;
     })
     .join('; ');
@@ -92,8 +91,7 @@ export function describeSystem(
         structure.name,
         ...(tags.length > 0 ? [`(${tags.join('; ')})`] : []),
       ].join(' ');
-      const note = structure.aiNote ? ` Note: ${structure.aiNote}` : '';
-      return `- ${header}: ${describeFields(structure.fields, fieldTags)}.${note}`;
+      return `- ${header}: ${describeFields(structure.fields, fieldTags)}.`;
     }),
   ].join('\n');
 }

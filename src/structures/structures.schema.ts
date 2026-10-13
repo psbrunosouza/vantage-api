@@ -20,7 +20,6 @@ export const structures = pgTable(
     icon: text('icon').notNull(),
     color: text('color'),
     fields: jsonb('fields').$type<StructureField[]>().notNull().default([]),
-    aiNote: text('ai_note'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

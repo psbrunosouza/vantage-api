@@ -15,8 +15,6 @@ const MAX_STRUCTURES = 4;
 const MIN_FIELDS = 2;
 const MAX_FIELDS = 4;
 const MAX_ACTOR_FIELDS = 8;
-const NOTE_WORDS = 12;
-const NOTE_LENGTH = 500;
 
 const PROMPT = [
   'You design the data model of a solo tabletop RPG played in Vantage.',
@@ -34,9 +32,9 @@ const PROMPT = [
   'Player characters have one to three meters as progress fields, chosen for this story: health, stamina, mana, ki, rage, sanity, battery, hunger, reputation or anything else that rises and falls. A meter can be what the player must keep high or lose, such as a relationship in a school story. The story may have no health at all.',
   'Player characters also have attributes as number fields. Classic ones such as strength, dexterity or constitution fit only classic fantasy. Invent attributes that match how this story is played, such as charm, grades and popularity at school, or reflexes, code and contacts for hackers. A choice field, such as an origin, class or approach, may replace numbers when it fits better.',
   'Other structures may use progress too, such as the alert of a district or the loyalty of a faction. Never propose relations to other structures.',
-  `Give each structure and each field a note for the oracle that explains what it means in this world: one short sentence of at most ${NOTE_WORDS} words, then two or three keywords, as in "Quem os jogadores controlam · sobrevivência, grupo, confiança".`,
-  'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
-  'Write names, labels, options and notes in Brazilian Portuguese.',
+  'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, one for each in the same order, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
+  'When a structure to replace keeps fields, its replacement keeps them too: build the new structure around them and never propose them again.',
+  'Write names, labels and options in Brazilian Portuguese.',
 ].join('\n');
 
 const FIELD_TYPES = Object.keys(AI_FIELD_SIZES) as [
@@ -48,7 +46,6 @@ const proposalSchema = z.object({
   name: z.string().min(1),
   icon: z.enum(STRUCTURE_ICONS),
   tags: z.array(z.string()),
-  note: z.string(),
   fields: z
     .array(
       z.object({
@@ -56,7 +53,6 @@ const proposalSchema = z.object({
         label: z.string().min(1),
         tags: z.array(z.string()),
         options: z.array(z.string()),
-        note: z.string(),
       }),
     )
     .min(1),
@@ -82,7 +78,13 @@ export function lockedLines(dto: StructureProposalsDto): string[] {
           .join('\n')}`
       : null,
     dto.replaced.length > 0
-      ? `Structures to replace with ${dto.replaced.length} new ones: ${dto.replaced.join(', ')}`
+      ? `Structures to replace with ${dto.replaced.length} new ones, in this order:\n${dto.replaced
+          .map(({ name, fields }) =>
+            fields.length > 0
+              ? `- ${name} (keeps the fields ${fields.map((field) => field.label).join(', ')})`
+              : `- ${name}`,
+          )
+          .join('\n')}`
       : null,
   ].filter((line) => line !== null);
 }
@@ -91,7 +93,6 @@ export interface StructureProposal {
   name: string;
   icon: string;
   tagIds: string[];
-  aiNote: string;
   fields: StructureField[];
 }
 
@@ -104,35 +105,31 @@ function idsOf(tags: readonly ProposalTag[], slugs: readonly string[]): string[]
   return tags.filter((tag) => slugs.includes(tag.slug)).map((tag) => tag.id);
 }
 
-function noteOf(note: string): string {
-  return note.trim().slice(0, NOTE_LENGTH);
-}
-
 export function proposalOf(
   structure: ProposalDraft,
   structureTags: readonly ProposalTag[],
   fieldTags: readonly ProposalTag[],
+  kept: readonly StructureField[] = [],
 ): StructureProposal {
   const max = structure.tags.includes(ACTORS_SLUG)
     ? MAX_ACTOR_FIELDS
     : MAX_FIELDS;
-  const fields = structure.fields.slice(0, max);
+  const taken = new Set(kept.map((field) => field.label.trim().toLowerCase()));
+  const fields = structure.fields
+    .filter((field) => !taken.has(field.label.trim().toLowerCase()))
+    .slice(0, max);
 
   return {
     name: structure.name,
     icon: structure.icon,
     tagIds: idsOf(structureTags, structure.tags),
-    aiNote: noteOf(structure.note),
-    fields: layoutFields([], fields).map((field, index) => {
-      const draft = fields[index];
-      const aiNote = noteOf(draft.note);
-
-      return {
+    fields: [
+      ...kept,
+      ...layoutFields(kept, fields).map((field, index) => ({
         ...field,
-        tagIds: idsOf(fieldTags, draft.tags),
-        ...(aiNote ? { aiNote } : {}),
-      };
-    }),
+        tagIds: idsOf(fieldTags, fields[index].tags),
+      })),
+    ],
   };
 }
 
@@ -195,8 +192,10 @@ export class StructureProposalsFlow {
           return;
         }
 
+        const kept = dto.replaced[count]?.fields ?? [];
+
         count++;
-        onProposal(proposalOf(structure, structureTags, fieldTags));
+        onProposal(proposalOf(structure, structureTags, fieldTags, kept));
       },
     );
   }

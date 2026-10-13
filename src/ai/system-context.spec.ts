@@ -22,14 +22,14 @@ describe('describeFields', () => {
     expect(describeFields([field({})])).toBe('Vida (short text)');
   });
 
-  it('adds the field tags and the note for the oracle', () => {
+  it('adds the field tags', () => {
     expect(
       describeFields(
-        [field({ type: 'progress', tagIds: ['hp'], aiNote: 'Zera quando o sobrevivente cai.' })],
+        [field({ type: 'progress', tagIds: ['hp'] })],
         [{ id: 'hp', slug: 'vida', description: 'Saúde do personagem' } as WorldFieldTag],
       ),
     ).toBe(
-      'Vida (current / max; @vida: Saúde do personagem; note: Zera quando o sobrevivente cai.)',
+      'Vida (current / max; @vida: Saúde do personagem)',
     );
   });
 });

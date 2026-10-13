@@ -25,7 +25,6 @@ import type {
 
 const RECORDS = { min: 2, max: 3 };
 const REQUESTED = 4;
-const HOOKS = 3;
 
 const PROMPT = [
   'You populate the world of a solo tabletop RPG played in Vantage.',
@@ -42,21 +41,8 @@ const PROMPT = [
   'Write in the language of the system.',
 ].join('\n');
 
-const HOOKS_PROMPT = [
-  'You write loose story hooks for a tabletop RPG played in Vantage.',
-  `Write ${HOOKS} hooks. Each one is a short question or rumor, at most 20 words, that ties two or more records together, preferably through their relationships, and gives the players something to chase.`,
-  'List the exact names of the records each hook mentions.',
-  'Write in the language of the system.',
-].join('\n');
-
-export interface Hook {
-  text: string;
-  names: string[];
-}
-
 export interface Population {
   resources: WorldResource[];
-  hooks: Hook[];
 }
 
 interface RecordDraft {
@@ -92,7 +78,7 @@ export function replacements(
   world: readonly WorldStructure[],
   resources: readonly WorldResource[],
   ids: readonly string[],
-): { structure: WorldStructure; count: number; ids: string[]; notes: string[] }[] {
+): { structure: WorldStructure; count: number; ids: string[] }[] {
   return world.flatMap((structure) => {
     const replaced = resources.filter(
       (resource) =>
@@ -105,9 +91,6 @@ export function replacements(
             structure,
             count: replaced.length,
             ids: replaced.map((resource) => resource.id),
-            notes: replaced.flatMap((resource) =>
-              resource.aiNote ? [`${resource.name}: ${resource.aiNote}`] : [],
-            ),
           },
         ]
       : [];
@@ -152,14 +135,12 @@ export class PopulationFlow {
     const targets: {
       structure: WorldStructure;
       count: number | RecordRange;
-      notes: string[];
     }[] =
       replaced.length > 0
         ? replaced
         : populationTargets(structures, resources).map((structure) => ({
             structure,
             count: RECORDS,
-            notes: [],
           }));
     const created: NewResource[] = [];
     const receive = (drafts: readonly RecordDraft[]) => {
@@ -180,25 +161,20 @@ export class PopulationFlow {
       );
     } else {
       await Promise.all(
-        targets.map(async ({ structure, count, notes }) =>
+        targets.map(async ({ structure, count }) =>
           receive(
-            await this.draft(credentials, context, structure, fieldTags, count, notes),
+            await this.draft(credentials, context, structure, fieldTags, count),
           ),
         ),
       );
     }
 
     const removed = replaced.flatMap(({ ids }) => ids);
-    const hooks = await this.hooks(credentials, context, structures, [
-      ...resources.filter((resource) => !removed.includes(resource.id)),
-      ...created,
-    ]);
 
     signal?.throwIfAborted();
 
     return {
       resources: await source.replaceResources(removed, created),
-      hooks,
     };
   }
 
@@ -208,7 +184,6 @@ export class PopulationFlow {
     structure: WorldStructure,
     fieldTags: readonly WorldFieldTag[],
     count: number | RecordRange,
-    notes: readonly string[],
   ): Promise<RecordDraft[]> {
     const { min, max } =
       typeof count === 'number' ? { min: count, max: count } : count;
@@ -224,12 +199,7 @@ export class PopulationFlow {
             context,
             `Structure: ${structure.name}`,
             `Fields: ${describeFields(structure.fields, fieldTags)}`,
-            notes.length > 0
-              ? `The new records replace records that had these notes for the oracle. Follow them:\n${notes.map((note) => `- ${note}`).join('\n')}`
-              : null,
-          ]
-            .filter((part) => part !== null)
-            .join('\n\n'),
+          ].join('\n\n'),
         },
       ],
       {
@@ -346,68 +316,17 @@ export class PopulationFlow {
         : [];
     });
   }
-
-  private async hooks(
-    credentials: AiCredentials,
-    context: string,
-    world: readonly WorldStructure[],
-    resources: readonly Pick<
-      WorldResource,
-      'name' | 'structureId' | 'aiNote' | 'values'
-    >[],
-  ): Promise<Hook[]> {
-    if (resources.length < 2) {
-      return [];
-    }
-
-    const { hooks } = await this.runner.submit(
-      credentials,
-      [
-        { role: 'system', content: HOOKS_PROMPT },
-        {
-          role: 'user',
-          content: [context, describeRecords(world, resources)].join('\n\n'),
-        },
-      ],
-      {
-        name: 'submit_hooks',
-        description: 'Submits the loose story hooks.',
-        input: z.object({
-          hooks: z
-            .array(
-              z.object({
-                text: z.string().min(1),
-                names: z.array(z.string().min(1)),
-              }),
-            )
-            .min(1)
-            .max(HOOKS),
-        }),
-      },
-    );
-    const names = new Set(resources.map((resource) => resource.name));
-
-    return hooks.map((hook) => ({
-      text: hook.text,
-      names: hook.names.filter((name) => names.has(name)),
-    }));
-  }
 }
 
 export function describeRecords(
   world: readonly WorldStructure[],
-  resources: readonly Pick<
-    WorldResource,
-    'name' | 'structureId' | 'aiNote' | 'values'
-  >[],
+  resources: readonly Pick<WorldResource, 'name' | 'structureId' | 'values'>[],
 ): string {
   const lines = world.flatMap((structure) =>
     resources
       .filter((resource) => resource.structureId === structure.id)
       .map((resource) => {
-        const header = resource.aiNote
-          ? `- ${resource.name} (${structure.name}): ${resource.aiNote}`
-          : `- ${resource.name} (${structure.name})`;
+        const header = `- ${resource.name} (${structure.name})`;
         const values = describeValues(structure.fields, resource.values);
 
         return values ? `${header}
