@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -21,6 +22,7 @@ export const systems = pgTable(
     icon: text('icon'),
     description: text('description'),
     color: text('color'),
+    pattern: integer('pattern'),
     mainDie: text('main_die'),
     avatarUrl: text('avatar_url'),
     narratorId: uuid('narrator_id').references(() => users.id, {

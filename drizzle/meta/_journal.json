@@ -197,6 +197,13 @@
       "when": 1791824306644,
       "tag": "0027_session_zero_formats",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791925468642,
+      "tag": "0028_system_pattern",
+      "breakpoints": true
     }
   ]
 }
