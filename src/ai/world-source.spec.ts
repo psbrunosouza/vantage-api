@@ -59,14 +59,21 @@ describe('replacedResources', () => {
     const resources = replacedResources(
       world,
       ['old'],
-      [{ structureId: 'places', name: 'Mercado', values: { mood: 'tenso', x: 1 } }],
+      [
+        {
+          id: 'mercado',
+          structureId: 'places',
+          name: 'Mercado',
+          values: { mood: 'tenso', x: 1 },
+        },
+      ],
     );
 
     expect(resources.map((resource) => resource.name)).toEqual([
       'Farol',
       'Mercado',
     ]);
-    expect(resources[1].id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(resources[1].id).toBe('mercado');
     expect(resources[1].values).toEqual({ mood: 'tenso' });
   });
 });

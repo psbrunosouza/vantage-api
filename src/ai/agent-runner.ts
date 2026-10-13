@@ -1,4 +1,9 @@
-import { BadGatewayException, HttpException, Injectable } from '@nestjs/common';
+import {
+  BadGatewayException,
+  HttpException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { z } from 'zod';
 import type { AiCredentials } from './ai.service.js';
 import { type AiFunction, type AiTool, chatToolOf } from './ai-tool.js';
@@ -9,6 +14,7 @@ import {
   OpenRouterClient,
   type ToolCall,
 } from './openrouter.client.js';
+import { tolerantParse } from './tolerant-parse.js';
 
 const MAX_STEPS = 6;
 const MAX_ATTEMPTS = 3;
@@ -16,6 +22,8 @@ const STRUCTURED_REASONING: ChatReasoning = { effort: 'low' };
 
 @Injectable()
 export class AgentRunner {
+  private readonly logger = new Logger(AgentRunner.name);
+
   constructor(private readonly openRouter: OpenRouterClient) {}
 
   async reply(
@@ -77,6 +85,7 @@ export class AgentRunner {
     output: AiFunction<T>,
   ): Promise<T> {
     const transcript = [...messages];
+    const started = Date.now();
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const reply = await this.openRouter.chat(
@@ -102,9 +111,10 @@ export class AgentRunner {
         continue;
       }
 
-      const parsed = output.input.safeParse(argumentsOf(call));
+      const parsed = tolerantParse(output.input, argumentsOf(call));
 
       if (parsed.success) {
+        this.timed(output.name, attempt, started);
         return parsed.data;
       }
 
@@ -118,6 +128,9 @@ export class AgentRunner {
       );
     }
 
+    this.logger.warn(
+      `${output.name} failed after ${MAX_ATTEMPTS} attempts in ${Date.now() - started}ms`,
+    );
     throw new BadGatewayException({
       code: 'AI_INVALID_RESULT',
       message: "The AI couldn't produce a valid result. Try again.",
@@ -132,6 +145,7 @@ export class AgentRunner {
     onItem: (item: T) => void,
   ): Promise<void> {
     const transcript = [...messages];
+    const started = Date.now();
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       let read = 0;
@@ -150,7 +164,7 @@ export class AgentRunner {
           const items = closedItemsOf(text);
 
           for (const raw of items.slice(read)) {
-            const parsed = item.safeParse(jsonOf(raw));
+            const parsed = tolerantParse(item, jsonOf(raw));
 
             if (parsed.success) {
               onItem(parsed.data);
@@ -164,6 +178,7 @@ export class AgentRunner {
       );
 
       if (sent > 0) {
+        this.timed(output.name, attempt, started);
         return;
       }
 
@@ -195,10 +210,19 @@ export class AgentRunner {
       );
     }
 
+    this.logger.warn(
+      `${output.name} failed after ${MAX_ATTEMPTS} attempts in ${Date.now() - started}ms`,
+    );
     throw new BadGatewayException({
       code: 'AI_INVALID_RESULT',
       message: "The AI couldn't produce a valid result. Try again.",
     });
+  }
+
+  private timed(name: string, attempts: number, started: number): void {
+    this.logger.log(
+      `${name} took ${Date.now() - started}ms in ${attempts} attempt(s)`,
+    );
   }
 
   private async execute(tools: AiTool[], call: ToolCall): Promise<string> {

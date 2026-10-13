@@ -111,8 +111,9 @@ export class SessionZeroQuestionsFlow {
   async run(
     userId: string,
     source: WorldSource,
+    onQuestion: (question: SessionZeroQuestionDto) => void,
     signal?: AbortSignal,
-  ): Promise<SessionZeroQuestionDto[]> {
+  ): Promise<void> {
     const [credentials, system, campaign, structures, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId, signal),
@@ -125,7 +126,9 @@ export class SessionZeroQuestionsFlow {
     const actors = structures.find(isActorStructure);
     const world = worldOf(structures).map((structure) => structure.name);
 
-    const { questions } = await this.runner.submit(
+    let sent = 0;
+
+    await this.runner.submitEach(
       credentials,
       [
         { role: 'system', content: PROMPT },
@@ -155,8 +158,13 @@ export class SessionZeroQuestionsFlow {
             .max(QUESTIONS.max),
         }),
       },
+      draftSchema,
+      (draft) => {
+        if (sent < QUESTIONS.max) {
+          sent++;
+          onQuestion(questionOf(draft));
+        }
+      },
     );
-
-    return questions.map(questionOf);
   }
 }

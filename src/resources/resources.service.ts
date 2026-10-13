@@ -48,6 +48,7 @@ export class ResourcesService {
     systemId: string,
     structureId: string,
     dto: CreateResourceDto,
+    id?: string,
   ): Promise<Resource> {
     await this.systemsService.ensureOwner(userId, systemId);
 
@@ -69,6 +70,7 @@ export class ResourcesService {
     const [resource] = await this.db
       .insert(resources)
       .values({
+        id,
         structureId,
         name: dto.name,
         values: parseResourceValues(structure.fields, dto.values ?? {}),

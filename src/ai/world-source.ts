@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Campaign } from '../campaigns/campaigns.schema.js';
 import { CampaignsService } from '../campaigns/campaigns.service.js';
@@ -41,6 +40,7 @@ export type WorldResource = Pick<
 > & { aiNote?: string | null };
 
 export interface NewResource {
+  id: string;
   structureId: string;
   name: string;
   values: ResourceValues;
@@ -96,6 +96,7 @@ export class WorldSources {
             systemId,
             resource.structureId,
             { name: resource.name, values: resource.values },
+            resource.id,
           );
         }
 
@@ -183,7 +184,7 @@ export function replacedResources(
   return [
     ...world.resources.filter((resource) => !removed.includes(resource.id)),
     ...created.map((resource) => ({
-      id: randomUUID(),
+      id: resource.id,
       structureId: resource.structureId,
       name: resource.name,
       values: parseResourceValues(

@@ -90,17 +90,15 @@ export class AiController {
   }
 
   @Post('system-drafts/:draftId/worlds')
-  systemWorlds(
+  async systemWorlds(
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
     @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    return this.systemWorldsFlow.run(
-      session.user.id,
-      draftId,
-      dto,
-      closedSignal(response),
+    @Res() response: Response,
+  ): Promise<void> {
+    const signal = closedSignal(response);
+    await streamLines(response, (send) =>
+      this.systemWorldsFlow.run(session.user.id, draftId, dto, send, signal),
     );
   }
 
@@ -148,14 +146,13 @@ export class AiController {
   async sessionZeroQuestions(
     @Session() session: UserSession<Auth>,
     @Param('systemId', ParseUUIDPipe) systemId: string,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.sessionZeroQuestionsFlow.run(
-      userId,
-      source,
-      closedSignal(response),
+    const signal = closedSignal(response);
+    await streamLines(response, (send) =>
+      this.sessionZeroQuestionsFlow.run(userId, source, send, signal),
     );
   }
 
@@ -163,14 +160,13 @@ export class AiController {
   async draftSessionZeroQuestions(
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.sessionZeroQuestionsFlow.run(
-      userId,
-      source,
-      closedSignal(response),
+    const signal = closedSignal(response);
+    await streamLines(response, (send) =>
+      this.sessionZeroQuestionsFlow.run(userId, source, send, signal),
     );
   }
 
@@ -179,15 +175,21 @@ export class AiController {
     @Session() session: UserSession<Auth>,
     @Param('systemId', ParseUUIDPipe) systemId: string,
     @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofSystem(userId, systemId);
-    return this.populationFlow.run(
-      userId,
-      source,
-      dto,
-      closedSignal(response),
+    const signal = closedSignal(response);
+    await streamLines(response, async (send) =>
+      send(
+        await this.populationFlow.run(
+          userId,
+          source,
+          dto,
+          (records) => send({ records }),
+          signal,
+        ),
+      ),
     );
   }
 
@@ -196,15 +198,21 @@ export class AiController {
     @Session() session: UserSession<Auth>,
     @Param('draftId', ParseUUIDPipe) draftId: string,
     @Body(new ZodValidationPipe(populationSchema)) dto: PopulationDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const userId = session.user.id;
     const source = await this.worldSources.ofDraft(userId, draftId);
-    return this.populationFlow.run(
-      userId,
-      source,
-      dto,
-      closedSignal(response),
+    const signal = closedSignal(response);
+    await streamLines(response, async (send) =>
+      send(
+        await this.populationFlow.run(
+          userId,
+          source,
+          dto,
+          (records) => send({ records }),
+          signal,
+        ),
+      ),
     );
   }
 

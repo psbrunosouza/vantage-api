@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import type { Resource } from '../../resources/resources.schema.js';
@@ -15,6 +16,7 @@ import {
   fillableFields,
 } from '../system-context.js';
 import type {
+  NewResource,
   WorldFieldTag,
   WorldResource,
   WorldSource,
@@ -123,6 +125,7 @@ export class PopulationFlow {
     userId: string,
     source: WorldSource,
     dto: PopulationDto,
+    onRecords: (records: NewResource[]) => void,
     signal?: AbortSignal,
   ): Promise<Population> {
     const [credentials, system, campaign, structures, resources, fieldTags] =
@@ -158,22 +161,34 @@ export class PopulationFlow {
             count: RECORDS,
             notes: [],
           }));
-    const drafts = dto.request
-      ? await this.request(credentials, context, structures, fieldTags, dto.request)
-      : (
-          await Promise.all(
-            targets.map(({ structure, count, notes }) =>
-              this.draft(credentials, context, structure, fieldTags, count, notes),
-            ),
-          )
-        ).flat();
+    const created: NewResource[] = [];
+    const receive = (drafts: readonly RecordDraft[]) => {
+      const records = drafts.map((draft) => ({
+        id: randomUUID(),
+        structureId: draft.structure.id,
+        name: draft.name,
+        values: draft.values,
+      }));
+
+      created.push(...records);
+      onRecords(records);
+    };
+
+    if (dto.request) {
+      receive(
+        await this.request(credentials, context, structures, fieldTags, dto.request),
+      );
+    } else {
+      await Promise.all(
+        targets.map(async ({ structure, count, notes }) =>
+          receive(
+            await this.draft(credentials, context, structure, fieldTags, count, notes),
+          ),
+        ),
+      );
+    }
 
     const removed = replaced.flatMap(({ ids }) => ids);
-    const created = drafts.map((draft) => ({
-      structureId: draft.structure.id,
-      name: draft.name,
-      values: draft.values,
-    }));
     const hooks = await this.hooks(credentials, context, structures, [
       ...resources.filter((resource) => !removed.includes(resource.id)),
       ...created,

@@ -181,10 +181,7 @@ describe('PopulationFlow.run', () => {
         created: readonly NewResource[],
       ) => {
         saved.push({ removed, created });
-        return created.map((resource, index) => ({
-          id: `record-${index}`,
-          ...resource,
-        }));
+        return created.map((resource) => ({ ...resource }));
       },
     } as unknown as WorldSource;
 
@@ -196,10 +193,13 @@ describe('PopulationFlow.run', () => {
     };
   }
 
-  it('saves the new records with hooks about them', async () => {
+  it('streams the new records and saves them with hooks about them', async () => {
     const { flow, source, saved, hooked } = populate(() => undefined);
+    const streamed: NewResource[] = [];
 
-    const population = await flow.run('user', source, { replace: [] });
+    const population = await flow.run('user', source, { replace: [] }, (records) =>
+      streamed.push(...records),
+    );
 
     expect(saved).toHaveLength(1);
     expect(saved[0].created.map((resource) => resource.name)).toEqual([
@@ -207,10 +207,10 @@ describe('PopulationFlow.run', () => {
       'Ilha',
     ]);
     expect(hooked[0]).toContain('- Porto (Places)');
-    expect(population.resources.map((resource) => resource.id)).toEqual([
-      'record-0',
-      'record-1',
-    ]);
+    expect(streamed.map((resource) => resource.name)).toEqual(['Porto', 'Ilha']);
+    expect(population.resources.map((resource) => resource.id)).toEqual(
+      streamed.map((resource) => resource.id),
+    );
     expect(population.hooks).toEqual([
       { text: 'A storm hides the port', names: ['Porto'] },
     ]);
@@ -221,7 +221,7 @@ describe('PopulationFlow.run', () => {
     const { flow, source, saved } = populate(() => controller.abort());
 
     await expect(
-      flow.run('user', source, { replace: [] }, controller.signal),
+      flow.run('user', source, { replace: [] }, () => undefined, controller.signal),
     ).rejects.toThrow();
     expect(saved).toEqual([]);
   });
