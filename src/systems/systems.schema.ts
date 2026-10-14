@@ -2,6 +2,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -24,6 +25,7 @@ export const systems = pgTable(
     color: text('color'),
     pattern: integer('pattern'),
     mainDie: text('main_die'),
+    moods: jsonb('moods').$type<string[]>().notNull().default([]),
     avatarUrl: text('avatar_url'),
     narratorId: uuid('narrator_id').references(() => users.id, {
       onDelete: 'set null',

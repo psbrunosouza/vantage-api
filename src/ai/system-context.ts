@@ -73,6 +73,12 @@ export function describeValues(
     .join('\n');
 }
 
+export function describeMoods(moods: readonly string[]): string | null {
+  return moods.length > 0
+    ? `Moods (optional ideas the player liked, use the ones that fit and ignore the rest): ${moods.join(', ')}`
+    : null;
+}
+
 export function describeSystem(
   system: WorldSystem,
   structures: readonly WorldStructure[],
@@ -81,6 +87,7 @@ export function describeSystem(
   return [
     `System: ${system.name}`,
     `Description: ${system.description ?? 'none'}`,
+    ...[describeMoods(system.moods)].filter((line) => line !== null),
     `Main die: ${system.mainDie ?? 'none'}`,
     'Structures:',
     ...structures.map((structure) => {

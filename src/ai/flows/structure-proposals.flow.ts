@@ -5,7 +5,7 @@ import { ACTORS_SLUG } from '../../tags/actors.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { AI_FIELD_SIZES, layoutFields } from '../field-layout.js';
-import { describeCampaign } from '../system-context.js';
+import { describeCampaign, describeMoods } from '../system-context.js';
 import type { StructureProposalsDto } from '../dto/structure-proposals.dto.js';
 import type { WorldSource } from '../world-source.js';
 import { STRUCTURE_ICONS } from './campaign-options.flow.js';
@@ -175,6 +175,7 @@ export class StructureProposalsFlow {
           content: [
             `System: ${system.name}`,
             `Campaign pitch: ${system.description ?? 'none'}`,
+            describeMoods(system.moods),
             `Themes: ${dto.themes.join(', ') || 'none'}`,
             campaign ? describeCampaign(campaign) : null,
             dto.structures.length > 0

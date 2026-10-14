@@ -143,7 +143,12 @@ describe('PopulationFlow.run', () => {
       },
     } as unknown as AgentRunner;
     const source = {
-      system: async () => ({ name: 'Mar', description: null, mainDie: null }),
+      system: async () => ({
+        name: 'Mar',
+        description: null,
+        mainDie: null,
+        moods: [],
+      }),
       campaign: async () => null,
       structures: async () => [places],
       resources: async () => [],

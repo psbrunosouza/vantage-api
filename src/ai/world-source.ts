@@ -24,7 +24,10 @@ import type { FieldTag } from '../tags/field-tags.schema.js';
 import type { StructureTag } from '../tags/structure-tags.schema.js';
 import { TagsService, slugify } from '../tags/tags.service.js';
 
-export type WorldSystem = Pick<System, 'name' | 'description' | 'mainDie'>;
+export type WorldSystem = Pick<
+  System,
+  'name' | 'description' | 'mainDie' | 'moods'
+>;
 export type WorldStructureTag = Pick<
   StructureTag,
   'id' | 'systemId' | 'slug' | 'name' | 'description'
@@ -140,6 +143,7 @@ export class WorldSources {
         name: slot.system.name ?? '',
         description: slot.system.description ?? null,
         mainDie: slot.system.mainDie ?? null,
+        moods: slot.system.moods ?? [],
       }),
       campaign: async () => null,
       structures: async () =>

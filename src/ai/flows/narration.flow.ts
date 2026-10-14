@@ -8,7 +8,7 @@ import { ResourcesService } from '../../resources/resources.service.js';
 import { StructuresService } from '../../structures/structures.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
-import { describeCampaign } from '../system-context.js';
+import { describeCampaign, describeMoods } from '../system-context.js';
 import type { ChatMessage } from '../openrouter.client.js';
 import { listCharactersTool } from '../tools/list-characters.tool.js';
 import { readSheetTool } from '../tools/read-sheet.tool.js';
@@ -80,8 +80,11 @@ export class NarrationFlow {
         content: [
           PROMPT,
           `System: ${system.name}. ${system.description ?? ''}`,
+          describeMoods(system.moods),
           describeCampaign(campaign),
-        ].join('\n\n'),
+        ]
+          .filter((part) => part !== null)
+          .join('\n\n'),
       },
       ...history,
     ];

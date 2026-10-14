@@ -1,0 +1,1 @@
+ALTER TABLE "systems" ADD COLUMN "moods" jsonb DEFAULT '[]'::jsonb NOT NULL;
