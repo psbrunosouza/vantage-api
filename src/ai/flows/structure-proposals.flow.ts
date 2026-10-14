@@ -9,6 +9,7 @@ import { describeCampaign } from '../system-context.js';
 import type { StructureProposalsDto } from '../dto/structure-proposals.dto.js';
 import type { WorldSource } from '../world-source.js';
 import { STRUCTURE_ICONS } from './campaign-options.flow.js';
+import { POSSIBILITIES, REQUIRED } from './session-zero-questions.flow.js';
 
 const MIN_STRUCTURES = 3;
 const MAX_STRUCTURES = 4;
@@ -31,6 +32,8 @@ const PROMPT = [
   'Sheets relate to each other with friendship, alliance, neutrality, rivalry, hatred or prejudice. Give every structure whose sheets can relate, such as characters, groups, peoples or places, a long-text field with the descricao tag that describes the sheet and its relationships.',
   'Player characters have one to three meters as progress fields, chosen for this story: health, stamina, mana, ki, rage, sanity, battery, hunger, reputation or anything else that rises and falls. A meter can be what the player must keep high or lose, such as a relationship in a school story. The story may have no health at all.',
   'Player characters also have attributes as number fields. Classic ones such as strength, dexterity or constitution fit only classic fantasy. Invent attributes that match how this story is played, such as charm, grades and popularity at school, or reflexes, code and contacts for hackers. A choice field, such as an origin, class or approach, may replace numbers when it fits better.',
+  'Besides meters and attributes, draw the fields of every atores structure from these character areas, choosing the ones this campaign makes interesting. Add a field outside them only when the story needs it:',
+  ...[...REQUIRED, ...POSSIBILITIES].map((area) => `- ${area}`),
   'Other structures may use progress too, such as the alert of a district or the loyalty of a faction. Never propose relations to other structures.',
   'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, one for each in the same order, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
   'When a structure to replace keeps fields, its replacement keeps them too: build the new structure around them and never propose them again.',

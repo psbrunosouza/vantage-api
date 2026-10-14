@@ -18,14 +18,14 @@ import { worldOf } from './population.flow.js';
 
 const QUESTIONS = { min: 3, max: 6 };
 
-const REQUIRED = [
+export const REQUIRED = [
   'Name: identity, nicknames and epithets.',
   'Background: origin, past, history and path.',
   'Personality: temperament, thoughts and behavior.',
   'Appearance: physical traits, style and presentation.',
 ];
 
-const POSSIBILITIES = [
+export const POSSIBILITIES = [
   'Identity and origin: culture, species, ancestry, gender, languages and traditions; education, training and apprenticeships; defining events, losses, achievements and experiences; alternate identities, aliases and disguises.',
   'Psychology and behavior: motivations, goals, desires and ambitions; beliefs, values, principles and worldview; fears, traumas, weaknesses and vulnerabilities; inner conflicts, dilemmas and contradictions; secrets and hidden information; habits, quirks, likes and dislikes; sociability, communication and leadership; emotional expression, self-esteem and self-image; limits, taboos, dependencies and inner needs.',
   'Capabilities and conditions: skills, talents, knowledge and powers; limitations, difficulties and restrictions; health, physical conditions and disabilities; extraordinary traits, magic, mutations and implants; strategies, methods and decision making; specific knowledge and privileged information.',
