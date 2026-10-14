@@ -2,18 +2,20 @@ import { Inject, Injectable } from '@nestjs/common';
 import { asc, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../database/database.module.js';
-import { catalogThemes } from './catalog.schema.js';
+import { type CatalogTheme, catalogThemes } from './catalog.schema.js';
 
 @Injectable()
 export class CatalogService {
   constructor(@Inject(DATABASE) private readonly db: NodePgDatabase) {}
 
-  async themes(): Promise<string[]> {
-    const rows = await this.db
-      .select({ name: catalogThemes.name })
+  themes(): Promise<Pick<CatalogTheme, 'name' | 'suggestions'>[]> {
+    return this.db
+      .select({
+        name: catalogThemes.name,
+        suggestions: catalogThemes.suggestions,
+      })
       .from(catalogThemes)
       .orderBy(asc(catalogThemes.name));
-    return rows.map((row) => row.name);
   }
 
   async randomThemes(count: number): Promise<string[]> {

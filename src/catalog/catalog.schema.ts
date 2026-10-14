@@ -1,8 +1,21 @@
-import { index, integer, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+} from 'drizzle-orm/pg-core';
+
+export type ThemeSuggestion = Record<string, string>;
 
 export const catalogThemes = pgTable('catalog_themes', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   name: text('name').notNull().unique(),
+  suggestions: jsonb('suggestions')
+    .$type<ThemeSuggestion[]>()
+    .notNull()
+    .default([]),
 });
 
 export const catalogSpecies = pgTable('catalog_species', {

@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_themes" ADD COLUMN "suggestions" jsonb DEFAULT '[]'::jsonb NOT NULL;

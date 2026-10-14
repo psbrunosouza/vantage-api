@@ -6,6 +6,7 @@
     "deleteOutDir": true,
     "assets": [
       "database/seeds/themes.txt",
+      "database/seeds/themes.json",
       "database/seeds/species.json"
     ]
   }
