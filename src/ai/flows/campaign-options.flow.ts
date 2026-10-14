@@ -26,6 +26,7 @@ const PROMPT = [
   '"A maior corporação da cidade guarda num cofre orbital o único antídoto para a praga que ela mesma criou. Um velho hacker reúne os aventureiros para o assalto do século."',
   'Also return its themes translated to Brazilian Portuguese, in the same order, and five structures that fit its world. A structure groups sheets of one kind, such as places, factions, creatures or any kind this world needs, never player characters. Group places by scale, such as cities or districts, never by kind of building, such as churches. Each structure name is a plural noun of one or two words.',
   'When there is a player direction, it takes priority over the theme set.',
+  'Moods are optional ideas the player liked. Use the ones that fit the pitch and ignore the rest.',
   'Write everything in Brazilian Portuguese.',
 ].join('\n');
 
