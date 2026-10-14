@@ -1,0 +1,1 @@
+ALTER TABLE "catalog_themes" ADD COLUMN "labels" jsonb DEFAULT '{}'::jsonb NOT NULL;

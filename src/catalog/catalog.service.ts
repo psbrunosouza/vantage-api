@@ -8,10 +8,11 @@ import { type CatalogTheme, catalogThemes } from './catalog.schema.js';
 export class CatalogService {
   constructor(@Inject(DATABASE) private readonly db: NodePgDatabase) {}
 
-  themes(): Promise<Pick<CatalogTheme, 'name' | 'suggestions'>[]> {
+  themes(): Promise<Pick<CatalogTheme, 'name' | 'labels' | 'suggestions'>[]> {
     return this.db
       .select({
         name: catalogThemes.name,
+        labels: catalogThemes.labels,
         suggestions: catalogThemes.suggestions,
       })
       .from(catalogThemes)

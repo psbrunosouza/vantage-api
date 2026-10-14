@@ -11,6 +11,7 @@ const sourceSchema = z.object({
   themes: z.record(
     z.string().trim().min(1),
     z.object({
+      name: z.record(z.string(), z.string().trim().min(1)),
       subthemes: z.array(z.record(z.string(), z.string().trim().min(1))),
     }),
   ),
@@ -22,6 +23,7 @@ export async function seedThemes(db: NodePgDatabase): Promise<void> {
   );
   const rows = Object.entries(themes).map(([name, theme]) => ({
     name: name.trim(),
+    labels: theme.name,
     suggestions: theme.subthemes,
   }));
 
@@ -32,7 +34,10 @@ export async function seedThemes(db: NodePgDatabase): Promise<void> {
         .values(batch)
         .onConflictDoUpdate({
           target: catalogThemes.name,
-          set: { suggestions: sql`excluded.suggestions` },
+          set: {
+            labels: sql`excluded.labels`,
+            suggestions: sql`excluded.suggestions`,
+          },
         });
     }
   });

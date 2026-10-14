@@ -4,7 +4,11 @@ import { catalogThemes } from './catalog.schema.js';
 import { seedThemes } from './themes.seed.js';
 
 function database() {
-  const rows: { name: string; suggestions: Record<string, string>[] }[] = [];
+  const rows: {
+    name: string;
+    labels: Record<string, string>;
+    suggestions: Record<string, string>[];
+  }[] = [];
   const onConflictDoUpdate = vi.fn();
   const tx = {
     insert: vi.fn(() => ({
@@ -22,12 +26,17 @@ function database() {
 }
 
 describe('seedThemes', () => {
-  it('upserts every theme with its translated suggestions', async () => {
+  it('upserts every theme with its translated labels and suggestions', async () => {
     const { db, rows, onConflictDoUpdate } = database();
 
     await seedThemes(db);
 
     expect(rows).toHaveLength(127);
+    expect(rows.find((row) => row.name === 'dark fantasy')?.labels).toEqual({
+      en: 'Dark Fantasy',
+      'pt-BR': 'Fantasia sombria',
+      es: 'Fantasía oscura',
+    });
     expect(rows.find((row) => row.name === 'cyberpunk')?.suggestions[0]).toEqual(
       {
         en: 'neon megacities',
