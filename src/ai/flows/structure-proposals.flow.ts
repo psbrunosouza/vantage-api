@@ -6,6 +6,7 @@ import { AgentRunner } from '../agent-runner.js';
 import { AiService } from '../ai.service.js';
 import { AI_FIELD_SIZES, layoutFields } from '../field-layout.js';
 import { describeCampaign, describeMoods } from '../system-context.js';
+import { LANGUAGES, type Locale } from '../../auth/locales.js';
 import type { StructureProposalsDto } from '../dto/structure-proposals.dto.js';
 import type { WorldSource } from '../world-source.js';
 import { STRUCTURE_ICONS } from './campaign-options.flow.js';
@@ -37,7 +38,7 @@ const PROMPT = [
   'Other structures may use progress too, such as the alert of a district or the loyalty of a faction. Never propose relations to other structures.',
   'When the request lists kept structures, they already exist: never propose them again. When it lists structures to replace, propose exactly that many new ones, one for each in the same order, different from the kept and the replaced ones. Give the atores tag to a new structure only when no kept structure has it.',
   'When a structure to replace keeps fields, its replacement keeps them too: build the new structure around them and never propose them again.',
-  'Write names, labels and options in Brazilian Portuguese.',
+  'Write names, labels and options in the output language.',
 ].join('\n');
 
 const FIELD_TYPES = Object.keys(AI_FIELD_SIZES) as [
@@ -147,6 +148,7 @@ export class StructureProposalsFlow {
     userId: string,
     source: WorldSource,
     dto: StructureProposalsDto,
+    locale: Locale,
     onProposal: (proposal: StructureProposal) => void,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -184,6 +186,7 @@ export class StructureProposalsFlow {
             ...lockedLines(dto),
             `Structure tags:\n${listing(structureTags)}`,
             `Field tags:\n${listing(fieldTags)}`,
+            `Output language: ${LANGUAGES[locale]}`,
           ]
             .filter((part) => part !== null)
             .join('\n\n'),

@@ -4,6 +4,13 @@ export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = 'en';
 
+export const LANGUAGES: Record<Locale, string> = {
+  en: 'English',
+  'pt-BR': 'Brazilian Portuguese',
+  'zh-CN': 'Simplified Chinese',
+  es: 'Spanish',
+};
+
 export function parseLocale(value: unknown): Locale | null {
   return LOCALES.find((locale) => locale === value) ?? null;
 }

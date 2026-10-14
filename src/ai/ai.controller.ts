@@ -15,6 +15,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
 import type { Auth } from '../auth/auth.js';
+import { localeOf } from '../auth/locales.js';
 import { closedSignal } from '../common/closed-signal.js';
 import { streamLines } from '../common/ndjson.js';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
@@ -86,7 +87,11 @@ export class AiController {
     @Session() session: UserSession<Auth>,
     @Body(new ZodValidationPipe(campaignOptionsSchema)) dto: CampaignOptionsDto,
   ) {
-    return this.campaignOptionsFlow.run(session.user.id, dto);
+    return this.campaignOptionsFlow.run(
+      session.user.id,
+      dto,
+      localeOf(session.user.locale),
+    );
   }
 
   @Post('system-drafts/:draftId/worlds')
@@ -98,7 +103,14 @@ export class AiController {
   ): Promise<void> {
     const signal = closedSignal(response);
     await streamLines(response, (send) =>
-      this.systemWorldsFlow.run(session.user.id, draftId, dto, send, signal),
+      this.systemWorldsFlow.run(
+        session.user.id,
+        draftId,
+        dto,
+        localeOf(session.user.locale),
+        send,
+        signal,
+      ),
     );
   }
 
@@ -122,7 +134,14 @@ export class AiController {
     const source = await this.worldSources.ofSystem(userId, systemId);
     const signal = closedSignal(response);
     await streamLines(response, (send) =>
-      this.structureProposalsFlow.run(userId, source, dto, send, signal),
+      this.structureProposalsFlow.run(
+        userId,
+        source,
+        dto,
+        localeOf(session.user.locale),
+        send,
+        signal,
+      ),
     );
   }
 
@@ -138,7 +157,14 @@ export class AiController {
     const source = await this.worldSources.ofDraft(userId, draftId);
     const signal = closedSignal(response);
     await streamLines(response, (send) =>
-      this.structureProposalsFlow.run(userId, source, dto, send, signal),
+      this.structureProposalsFlow.run(
+        userId,
+        source,
+        dto,
+        localeOf(session.user.locale),
+        send,
+        signal,
+      ),
     );
   }
 

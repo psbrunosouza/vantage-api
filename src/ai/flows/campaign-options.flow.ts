@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { LANGUAGES, type Locale } from '../../auth/locales.js';
 import { CatalogService } from '../../catalog/catalog.service.js';
 import { AgentRunner } from '../agent-runner.js';
 import { type AiCredentials, AiService } from '../ai.service.js';
@@ -24,10 +25,10 @@ const PROMPT = [
   '"Um dragão vermelho tomou a única passagem entre as montanhas e exige uma princesa por mês como tributo. O rei oferece metade do tesouro real a quem trouxer a cabeça da fera."',
   '"Fantasmas tomaram o transatlântico Rainha do Norte em pleno oceano, e toda noite um passageiro desaparece. Os aventureiros estão a bordo e precisam descobrir quem acordou os mortos antes de serem os próximos."',
   '"A maior corporação da cidade guarda num cofre orbital o único antídoto para a praga que ela mesma criou. Um velho hacker reúne os aventureiros para o assalto do século."',
-  'Also return its themes translated to Brazilian Portuguese, in the same order, and five structures that fit its world. A structure groups sheets of one kind, such as places, factions, creatures or any kind this world needs, never player characters. Group places by scale, such as cities or districts, never by kind of building, such as churches. Each structure name is a plural noun of one or two words.',
+  'Also return its themes translated to the output language, in the same order, and five structures that fit its world. A structure groups sheets of one kind, such as places, factions, creatures or any kind this world needs, never player characters. Group places by scale, such as cities or districts, never by kind of building, such as churches. Each structure name is a plural noun of one or two words.',
   'When there is a player direction, it takes priority over the theme set.',
   'Moods are optional ideas the player liked. Use the ones that fit the pitch and ignore the rest.',
-  'Write everything in Brazilian Portuguese.',
+  'Write everything in the output language.',
 ].join('\n');
 
 const SETS = 3;
@@ -145,13 +146,18 @@ export class CampaignOptionsFlow {
     private readonly runner: AgentRunner,
   ) {}
 
-  async run(userId: string, dto: CampaignOptionsDto): Promise<CampaignOption[]> {
-    return Promise.all(await this.pitches(userId, dto));
+  async run(
+    userId: string,
+    dto: CampaignOptionsDto,
+    locale: Locale,
+  ): Promise<CampaignOption[]> {
+    return Promise.all(await this.pitches(userId, dto, locale));
   }
 
   async pitches(
     userId: string,
     dto: CampaignOptionsDto,
+    locale: Locale,
     signal?: AbortSignal,
   ): Promise<Promise<CampaignOption>[]> {
     const chosen = dto.themes ?? [];
@@ -164,7 +170,7 @@ export class CampaignOptionsFlow {
     const goals = campaignGoals();
 
     return themeSets(chosen, random).map((set, index) =>
-      this.pitch(credentials, set, goals[index], dto),
+      this.pitch(credentials, set, goals[index], dto, locale),
     );
   }
 
@@ -173,6 +179,7 @@ export class CampaignOptionsFlow {
     set: string[],
     goal: string,
     dto: CampaignOptionsDto,
+    locale: Locale,
   ): Promise<CampaignOption> {
     return this.runner.submit(
       credentials,
@@ -185,6 +192,7 @@ export class CampaignOptionsFlow {
             `Goal of the adventurers: ${goal}`,
             dto.direction ? `Player direction: ${dto.direction}` : null,
             dto.moods?.length ? `Moods: ${dto.moods.join(', ')}` : null,
+            `Output language: ${LANGUAGES[locale]}`,
           ]
             .filter((part) => part !== null)
             .join('\n\n'),

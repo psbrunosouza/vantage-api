@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { DraftOption } from '../../system-drafts/dto/system-draft.dto.js';
 import { SystemDraftsService } from '../../system-drafts/system-drafts.service.js';
+import type { Locale } from '../../auth/locales.js';
 import type { CampaignOptionsDto } from '../dto/campaign-options.dto.js';
 import { type CampaignOption, CampaignOptionsFlow } from './campaign-options.flow.js';
 
@@ -29,11 +30,17 @@ export class SystemWorldsFlow {
     userId: string,
     draftId: string,
     dto: CampaignOptionsDto,
+    locale: Locale,
     onOption: (option: CampaignOption) => void,
     signal?: AbortSignal,
   ): Promise<void> {
     await this.systemDraftsService.findOpen(userId, draftId);
-    const pitches = await this.campaignOptionsFlow.pitches(userId, dto, signal);
+    const pitches = await this.campaignOptionsFlow.pitches(
+      userId,
+      dto,
+      locale,
+      signal,
+    );
     const settled: PromiseSettledResult<CampaignOption>[] = [];
 
     await Promise.all(
