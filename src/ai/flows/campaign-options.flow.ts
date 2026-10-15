@@ -7,12 +7,20 @@ import { type AiCredentials, AiService } from '../ai.service.js';
 import type { CampaignOptionsDto } from '../dto/campaign-options.dto.js';
 
 const PROMPT = [
-  'Act as a senior RPG world designer. Create a region from a macro perspective, including the structures within that region. Provide: 1) names for the region, locations, and people, without epithets or auxiliary text. Avoid starting the text with a name whenever possible; names should appear naturally within the text for greater immersion. Include the regions geographical diversity and climate; 2) 3 cities (or any similar structures) with their economies, politics, and internal conflicts, integrating their geographical locations immersively into the text; 3) 2 factions or groups in conflict; 4) A ruler or multiple rulers under any system of government; 5) Write in a literary style; 6) Provide only the requested content; 7) Distribute the content into concise and objective paragraphs; 8) Avoid obvious or predictable associations with the chosen theme; 9) Include a diversity of peoples and creatures; 10) Blend information about the region, such as locations, factions, and government, naturally into the narrative without categorizing it. 11) Write everything in the output language, except proper names; 12) Build every proper name from an existing real-world language: the region, cities, places, people, rulers, gods, factions, peoples and anything else that has a name. Never translate these names into the output language and never invent names outside that language.',
+  'Act as a senior RPG world designer. Create a region from a macro perspective, including the structures within that region. Provide:',
+  '1) names for the region, locations, and people, without epithets or auxiliary text. Avoid starting the text with a name whenever possible; names should appear naturally within the text for greater immersion. Include the regions geographical diversity and climate;',
+  '2) 3 cities (or any similar structures) with their economies, politics, and internal conflicts, integrating their geographical locations immersively into the text;',
+  '3) 2 factions or groups in conflict;',
+  '4) A ruler or multiple rulers under any system of government;',
+  '5) Write in a literary style;',
+  '6) Provide only the requested content;',
+  '7) Distribute the content into concise and objective paragraphs;',
+  '8) Avoid obvious or predictable associations with the chosen theme;',
+  '9) Include a diversity of peoples and creatures;',
+  '10) Blend information about the region, such as locations, factions, and government, naturally into the narrative without categorizing it.',
 ].join('\n');
 
 const SETS = 3;
-const MIN_THEMES = 1;
-const MAX_THEMES = 1;
 const STRUCTURES = 5;
 
 export const STRUCTURE_ICONS = [
@@ -74,11 +82,7 @@ const structureSchema = z.object({
 });
 
 export const campaignOptionSchema = z.object({
-  theme: z
-    .string()
-    .min(1)
-    .describe('The full region description, in several paragraphs.'),
-  themes: z.array(z.string().min(1)).describe('The translated themes.'),
+  theme: z.string().min(1).describe('Describe a sinopse'),
   structures: z
     .array(structureSchema)
     .length(STRUCTURES)
@@ -93,19 +97,11 @@ const OUTPUT = {
   input: campaignOptionSchema,
 };
 
-export function themeSets(chosen: string[], random: string[]): string[][] {
-  if (chosen.length > 0) {
-    return Array.from({ length: SETS }, () => chosen);
-  }
-
-  return Array.from({ length: SETS }, (_, index) =>
-    random.slice(
-      index * MAX_THEMES,
-      index * MAX_THEMES +
-        MIN_THEMES +
-        Math.floor(Math.random() * (MAX_THEMES - MIN_THEMES + 1)),
-    ),
-  );
+export function campaignThemes(
+  chosen: string | undefined,
+  random: string[],
+): (string | undefined)[] {
+  return Array.from({ length: SETS }, (_, index) => chosen ?? random[index]);
 }
 
 @Injectable()
@@ -130,22 +126,19 @@ export class CampaignOptionsFlow {
     locale: Locale,
     signal?: AbortSignal,
   ): Promise<Promise<CampaignOption>[]> {
-    const chosen = dto.themes ?? [];
     const [credentials, random] = await Promise.all([
       this.aiService.credentialsOf(userId, signal),
-      chosen.length > 0
-        ? []
-        : this.catalogService.randomThemes(SETS * MAX_THEMES),
+      dto.theme ? [] : this.catalogService.randomThemes(SETS),
     ]);
 
-    return themeSets(chosen, random).map((set) =>
-      this.pitch(credentials, set, dto, locale),
+    return campaignThemes(dto.theme, random).map((theme) =>
+      this.pitch(credentials, theme, dto, locale),
     );
   }
 
   private pitch(
     credentials: AiCredentials,
-    set: string[],
+    theme: string | undefined,
     dto: CampaignOptionsDto,
     locale: Locale,
   ): Promise<CampaignOption> {
@@ -156,7 +149,7 @@ export class CampaignOptionsFlow {
         {
           role: 'user',
           content: [
-            `Theme set: ${set.join(', ') || 'any'}`,
+            `Theme: ${theme ?? 'any'}`,
             dto.direction ? `Player direction: ${dto.direction}` : null,
             dto.moods?.length ? `Moods: ${dto.moods.join(', ')}` : null,
             `Output language: ${LANGUAGES[locale]}`,

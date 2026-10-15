@@ -4,7 +4,6 @@ import { draftOptionsOf } from './system-worlds.flow.js';
 
 const option = (theme: string): CampaignOption => ({
   theme,
-  themes: ['Piratas'],
   structures: [],
 });
 

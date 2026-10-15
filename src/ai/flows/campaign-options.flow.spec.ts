@@ -1,20 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { themeSets } from './campaign-options.flow.js';
+import { campaignThemes } from './campaign-options.flow.js';
 
-describe('themeSets', () => {
-  it('uses the chosen themes for every campaign', () => {
-    expect(themeSets(['dark fantasy'], ['space opera'])).toEqual([
-      ['dark fantasy'],
-      ['dark fantasy'],
-      ['dark fantasy'],
+describe('campaignThemes', () => {
+  it('uses the chosen theme for every campaign', () => {
+    expect(campaignThemes('dark fantasy', ['space opera'])).toEqual([
+      'dark fantasy',
+      'dark fantasy',
+      'dark fantasy',
     ]);
   });
 
   it('falls back to one random theme per campaign', () => {
-    expect(themeSets([], ['horror', 'wuxia', 'cyberpunk'])).toEqual([
-      ['horror'],
-      ['wuxia'],
-      ['cyberpunk'],
-    ]);
+    expect(campaignThemes(undefined, ['horror', 'wuxia', 'cyberpunk'])).toEqual(
+      ['horror', 'wuxia', 'cyberpunk'],
+    );
   });
 });
