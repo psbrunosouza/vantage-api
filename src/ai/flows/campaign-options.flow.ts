@@ -74,7 +74,7 @@ const structureSchema = z.object({
 });
 
 export const campaignOptionSchema = z.object({
-  theme: z.string().min(1).describe('The campaign synopsis.'),
+  theme: z.string().min(1).describe('The full region description, in several paragraphs.'),
   themes: z.array(z.string().min(1)).describe('The translated themes.'),
   structures: z
     .array(structureSchema)
