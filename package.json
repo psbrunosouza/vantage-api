@@ -1,6 +1,6 @@
 {
   "name": "vantage-backend",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx --env-file-if-exists=.env src/core/database/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "eval": "tsx --env-file-if-exists=.env evals/run.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.2",

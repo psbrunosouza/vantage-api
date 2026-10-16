@@ -1,0 +1,82 @@
+[
+  {
+    "id": "fantasia",
+    "theme": "alta fantasia",
+    "moods": ["épico", "aventureiro"],
+    "expect": "Alta fantasia: reinos, magia, criaturas e conflitos políticos ou míticos.",
+    "forbidden": ["\\bcelulare?s?\\b", "\\binternet\\b", "\\bpistolas?\\b"]
+  },
+  {
+    "id": "escolar",
+    "theme": "drama escolar no ensino médio",
+    "moods": ["leve", "intrigante"],
+    "expect": "Drama escolar contemporâneo: escala de uma escola e seus arredores, poder social (popularidade, grêmio, diretoria), conflitos de amizade, rivalidade, segredos e notas. Sem sobrenatural.",
+    "forbidden": [
+      "\\breinos?\\b",
+      "\\bcriaturas?\\b",
+      "\\bmagia",
+      "\\bespadas?\\b",
+      "\\bdrag[õo]",
+      "\\bimp[ée]rio",
+      "\\bguildas?\\b",
+      "\\bgovernantes?\\b"
+    ]
+  },
+  {
+    "id": "terror",
+    "theme": "terror numa cidade pequena do interior",
+    "moods": ["sombrio", "tenso"],
+    "expect": "Terror: tensão crescente, ameaça que se revela aos poucos, escala de uma cidade pequena, vulnerabilidade dos personagens. Ação e heroísmo ficam em segundo plano.",
+    "forbidden": [
+      "\\breinos?\\b",
+      "\\bguildas?\\b",
+      "\\bimp[ée]rio",
+      "\\belfos?\\b",
+      "\\bdrag[õo]",
+      "\\bespadas?\\b"
+    ]
+  },
+  {
+    "id": "cyberpunk",
+    "theme": "cyberpunk em megacidade",
+    "moods": ["sujo", "frenético"],
+    "expect": "Cyberpunk: megacorporações, tecnologia invasiva, desigualdade, crime e hackers, escala de distritos de uma megacidade.",
+    "forbidden": [
+      "\\breinos?\\b",
+      "\\bmagia",
+      "\\bespadas?\\b",
+      "\\bdrag[õo]",
+      "\\belfos?\\b",
+      "\\bcavaleiros?\\b"
+    ]
+  },
+  {
+    "id": "misterio",
+    "theme": "assassinato numa mansão nos anos 1920",
+    "moods": ["elegante", "suspeito"],
+    "expect": "Mistério de época: elenco fechado de suspeitos, segredos, pistas e motivos, escala de uma mansão e arredores, tecnologia dos anos 1920.",
+    "forbidden": [
+      "\\breinos?\\b",
+      "\\bmagia",
+      "\\bdrag[õo]",
+      "\\bcriaturas?\\b",
+      "\\bhologram",
+      "\\bcelulare?s?\\b",
+      "\\binternet\\b"
+    ]
+  },
+  {
+    "id": "cotidiano",
+    "theme": "vida cotidiana numa cafeteria de bairro",
+    "moods": ["aconchegante", "bem-humorado"],
+    "expect": "Slice of life: problemas pequenos e pessoais, relações entre vizinhos e clientes, escala de um bairro. Sem guerra, sem vilões épicos, sem sobrenatural.",
+    "forbidden": [
+      "\\breinos?\\b",
+      "\\bex[ée]rcitos?\\b",
+      "\\bmagia",
+      "\\bcriaturas?\\b",
+      "\\bguerras?\\b",
+      "\\bfac[çc][õo]es"
+    ]
+  }
+]
