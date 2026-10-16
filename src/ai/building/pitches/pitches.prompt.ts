@@ -17,3 +17,9 @@ export const PROMPT = [
   'Fill the profile with the chosen slugs, the era and technology in a few words, two or three tone adjectives and up to six elements of other genres to keep out. Write everything except the slugs in the output language.',
   describeAxes(),
 ].join('\n');
+
+export const ANGLES = [
+  'Angle: the most natural reading of the theme, told with fresh and specific details.',
+  'Angle: move the theme to another scale or setting than the one it usually suggests, such as a closed place instead of a city or open lands instead of one house, keeping the theme and the moods.',
+  'Angle: build the theme around another kind of threat or conflict than the one it usually suggests, such as a mystery instead of a war or a personal drama instead of a monster, keeping the theme and the moods.',
+];

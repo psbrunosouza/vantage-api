@@ -7,7 +7,7 @@ import { type AiCredentials, AiService } from '../../settings/ai.service.js';
 import type { CampaignOptionsDto } from './campaign-options.dto.js';
 import { genreProfileSchema } from '../../../world/worlds/genre-profile.js';
 import { STRUCTURE_ICONS } from '../../context/structure-icons.js';
-import { PROMPT } from './pitches.prompt.js';
+import { ANGLES, PROMPT } from './pitches.prompt.js';
 
 const SETS = 3;
 const STRUCTURES = 5;
@@ -68,14 +68,15 @@ export class PitchesFlow {
       dto.theme ? [] : this.catalogService.randomThemes(SETS),
     ]);
 
-    return campaignThemes(dto.theme, random).map((theme) =>
-      this.pitch(credentials, theme, dto, locale),
+    return campaignThemes(dto.theme, random).map((theme, index) =>
+      this.pitch(credentials, theme, ANGLES[index], dto, locale),
     );
   }
 
   private pitch(
     credentials: AiCredentials,
     theme: string | undefined,
+    angle: string,
     dto: CampaignOptionsDto,
     locale: Locale,
   ): Promise<CampaignOption> {
@@ -89,6 +90,7 @@ export class PitchesFlow {
             `Theme: ${theme ?? 'any'}`,
             dto.direction ? `Player direction: ${dto.direction}` : null,
             dto.moods?.length ? `Moods: ${dto.moods.join(', ')}` : null,
+            angle,
             `Output language: ${LANGUAGES[locale]}`,
           ]
             .filter((part) => part !== null)
