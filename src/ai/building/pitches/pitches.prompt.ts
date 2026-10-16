@@ -20,6 +20,6 @@ export const PROMPT = [
 
 export const ANGLES = [
   'Angle: the most natural reading of the theme, told with fresh and specific details.',
-  'Angle: move the theme to another scale or setting than the one it usually suggests, such as a closed place instead of a city or open lands instead of one house, keeping the theme and the moods.',
-  'Angle: build the theme around another kind of threat or conflict than the one it usually suggests, such as a mystery instead of a war or a personal drama instead of a monster, keeping the theme and the moods.',
+  'Angle: keep the genre and setting the theme suggests, and center the story on places and people it rarely shows instead of the obvious ones. Stay inside the genre: add no supernatural element, technology, setting or scale that the theme and moods do not ask for.',
+  'Angle: keep the genre and setting the theme suggests, and center the story on another conflict of that genre than the obvious one, such as a betrayal instead of a rivalry or a disappearance instead of a theft. Stay inside the genre: add no supernatural element, technology, setting or scale that the theme and moods do not ask for.',
 ];
