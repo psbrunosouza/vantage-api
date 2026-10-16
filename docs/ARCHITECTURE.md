@@ -190,10 +190,11 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 
 ## Worlds
 
-- `worlds` = perfil de gênero da system. 1:1, PK `system_id` (cascade). `profile` (`jsonb`, `genreProfileSchema` em `world/worlds/genre-profile.ts`): slugs dos eixos `scale` (1), `power`, `threat`, `stakes` (1–2 cada), `pacing` (1); `era`, `tone` (1–3) e `avoid` (≤6) em texto no idioma da system.
+- `worlds` = perfil de gênero da system. 1:1, PK `system_id` (cascade). `profile` (`jsonb`, `genreProfileSchema` em `world/worlds/genre-profile.ts`): `scale`, `power`, `threat`, `stakes`, `pacing` = 1–3 ids do catálogo cada (`GENRE_PICKS`); `era`, `tone` (1–3) e `avoid` (≤6) em texto no idioma da system.
+- Catálogo dos eixos: `world/worlds/genre-axes.json` (fonte: lista do produto, 776 opções; `id` em inglês + nome em `en`, `pt-BR`, `es`, `zh-CN`), lido e validado por `genre-axes.ts` (`GENRE_CATALOG`, `genreLabel`); copiado pro `dist` via assets do `nest-cli.json`. `GET /api/catalog/genre-axes` devolve o catálogo. Migration 0034 apagou os perfis do formato antigo (`worlds`, `system.profile`, `options[].option.profile`, `progress.campaign.profile`).
 - Rotas em `/api/systems/:systemId/world`: `GET` (quem vê a system; sem perfil → `null`), `PUT` (`{ profile }`, só dono, upsert).
 - Rascunho: cada pitch traz o seu em `options[].option.profile` (opcional: pitches antigos não têm); escolhido e editado vai em `system.profile` (opcional, `null` = nenhum). Commit grava `worlds` quando há perfil.
-- IA: `ai/context/genre-kits.ts` = guia por slug (kits por eixo). Pitch escolhe os slugs (`describeAxes` no prompt). `describeProfile` injeta o guia em structures, population, session-zero, campaign-start e narração. Sem perfil → nada injetado.
+- IA: `ai/context/genre-kits.ts` = significado de cada eixo. Pitch escolhe os ids (enum do schema da tool; `describeAxes` no prompt). `describeProfile` injeta os nomes em inglês de cada eixo em structures, population, session-zero, campaign-start e narração. Sem perfil → nada injetado.
 
 ## Campaigns
 

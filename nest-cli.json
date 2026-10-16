@@ -6,7 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       "core/database/seeds/themes.json",
-      "core/database/seeds/species.json"
+      "core/database/seeds/species.json",
+      "world/worlds/genre-axes.json"
     ]
   }
 }

@@ -14,7 +14,7 @@ export const PROMPT = [
   '8) Distribute the content into concise and objective paragraphs;',
   '9) Avoid obvious or predictable associations with the chosen theme;',
   '10) Blend information about the world naturally into the narrative without categorizing it.',
-  'Fill the profile with the chosen slugs, the era and technology in a few words, two or three tone adjectives and up to six elements of other genres to keep out. Write everything except the slugs in the output language.',
+  'Fill the profile with the chosen ids, the era and technology in a few words, two or three tone adjectives and up to six elements of other genres to keep out. Write everything except the ids in the output language.',
   describeAxes(),
 ].join('\n');
 

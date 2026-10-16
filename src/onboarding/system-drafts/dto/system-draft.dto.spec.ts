@@ -12,11 +12,11 @@ const option = {
 };
 
 const profile = {
-  scale: 'institution',
-  power: ['status'],
-  threat: ['drama'],
-  stakes: ['status'],
-  pacing: 'episodic',
+  scale: ['schools'],
+  power: ['popularity'],
+  threat: ['school-rivalry'],
+  stakes: ['reputation'],
+  pacing: ['episodic'],
   era: 'Brasil, anos 2020',
   tone: ['leve'],
   avoid: [],
@@ -43,8 +43,9 @@ describe('draftSystemSchema', () => {
 
   it('rejects a slug outside the axes', () => {
     expect(
-      draftSystemSchema.safeParse({ profile: { ...profile, scale: 'galaxy' } })
-        .success,
+      draftSystemSchema.safeParse({
+        profile: { ...profile, scale: ['galaxy'] },
+      }).success,
     ).toBe(false);
   });
 });

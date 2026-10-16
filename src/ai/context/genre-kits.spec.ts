@@ -1,36 +1,23 @@
 import type { GenreProfile } from '../../world/worlds/genre-profile.js';
-import {
-  PACINGS,
-  POWERS,
-  SCALES,
-  STAKES,
-  THREATS,
-} from '../../world/worlds/genre-profile.js';
 import { describeAxes, describeProfile } from './genre-kits.js';
 
 const profile: GenreProfile = {
-  scale: 'institution',
-  power: ['status'],
-  threat: ['drama', 'mystery'],
-  stakes: ['status'],
-  pacing: 'episodic',
+  scale: ['schools', 'small-towns'],
+  power: ['popularity'],
+  threat: ['school-rivalry', 'mystery'],
+  stakes: ['reputation'],
+  pacing: ['episodic'],
   era: 'Brasil, anos 2020',
   tone: ['leve', 'intrigante'],
   avoid: ['reinos', 'magia'],
 };
 
 describe('describeAxes', () => {
-  it('lists every slug of every axis', () => {
+  it('explains every axis', () => {
     const text = describeAxes();
 
-    for (const slug of [
-      ...SCALES,
-      ...POWERS,
-      ...THREATS,
-      ...STAKES,
-      ...PACINGS,
-    ]) {
-      expect(text).toContain(`- ${slug}: `);
+    for (const axis of ['scale', 'power', 'threat', 'stakes', 'pacing']) {
+      expect(text).toContain(`- ${axis}: `);
     }
   });
 });
@@ -40,12 +27,14 @@ describe('describeProfile', () => {
     expect(describeProfile(null)).toBeNull();
   });
 
-  it('turns the slugs into guidance', () => {
+  it('turns the ids into their names', () => {
     const text = describeProfile(profile);
 
-    expect(text).toContain('- Scale: One closed institution');
     expect(text).toContain(
-      '- Threat: Conflicts between people: rivalry, love, betrayal, envy and belonging. A crime or secret',
+      '- Scale (where the story happens and how far it reaches): Schools, Small towns',
+    );
+    expect(text).toContain(
+      '- Threat (what endangers the people of the world): School rivalry, Mystery',
     );
     expect(text).toContain('- Era and technology: Brasil, anos 2020');
     expect(text).toContain('- Tone: leve, intrigante');
