@@ -21,4 +21,4 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/drizzle ./drizzle
 USER node
 EXPOSE 3000
-CMD ["sh", "-c", "node dist/database/migrate.js && node dist/database/seed.js && exec node dist/main.js"]
+CMD ["sh", "-c", "node dist/core/database/migrate.js && node dist/core/database/seed.js && exec node dist/main.js"]

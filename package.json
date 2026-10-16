@@ -1,6 +1,6 @@
 {
   "name": "vantage-backend",
-  "version": "0.3.14",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx --env-file-if-exists=.env src/database/seed.ts",
+    "db:seed": "tsx --env-file-if-exists=.env src/core/database/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

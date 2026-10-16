@@ -7,7 +7,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from '@thallesp/nestjs-better-auth';
 import { AppModule } from './app.module.js';
-import type { Auth } from './auth/auth.js';
+import type { Auth } from './core/auth/auth.js';
 import type { Env } from './env.js';
 
 async function bootstrap() {

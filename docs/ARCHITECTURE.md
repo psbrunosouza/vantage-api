@@ -16,7 +16,7 @@ API do Vantage. Consumida por `frontend/` via proxy `/api/*`.
 - Auth: Better Auth + `@thallesp/nestjs-better-auth`. Sessão em banco + cookie.
 - Arquivos: Supabase Storage (só storage) via `@supabase/supabase-js`, secret key no backend.
 - Sem realtime até precisar. Realtime → gateway WebSocket do Nest.
-- IA: OpenRouter via `fetch` (`ai/openrouter.client.ts`). Token do próprio usuário.
+- IA: OpenRouter via `fetch` (`ai/runtime/openrouter.client.ts`). Token do próprio usuário.
 
 ## Repo
 
@@ -25,16 +25,30 @@ src/
   main.ts                 bootstrap
   app.module.ts           módulo raiz
   env.ts                  schema Zod do env
-  database/               DatabaseModule global, token DATABASE
-  auth/                   instância Better Auth + tabelas de auth
-  storage/                StorageModule global: ImageStorageService, ImageUpload (Supabase Storage)
-  common/                 código compartilhado entre domínios (ZodValidationPipe)
-  <domínio>/
+  core/                   infra transversal
+    database/             DatabaseModule global, token DATABASE, migrate, seed
+    auth/                 instância Better Auth + tabelas de auth
+    storage/              StorageModule global: ImageStorageService, ImageUpload (Supabase Storage)
+    common/               código compartilhado entre domínios (ZodValidationPipe, ndjson)
+    health/
+  system/                 systems, members, invites, avatar
+  model/                  structures, fields, tags, templates, resources, links
+  story/                  campaigns, play-sessions, session-zero
+  onboarding/             system-drafts, catalog
+  <grupo>/<domínio>/
     <domínio>.module.ts
     <domínio>.controller.ts
     <domínio>.service.ts
     <domínio>.schema.ts   tabelas Drizzle
     dto/
+  ai/
+    ai.module.ts
+    settings/             AiSettingsController, AiService, chave cifrada
+    runtime/              OpenRouterClient, AgentRunner, aiTool, KeyedLimiter, tolerantParse, closedItemsOf
+    context/              WorldSource, describe*, layout e valores de field, STRUCTURE_ICONS
+    building/             BuildingController; flows de criação do mundo (system e rascunho)
+      <flow>/             <flow>.flow.ts, <flow>.prompt.ts, dto, spec
+    play/                 PlayController; arc-start, narration, tools/
 drizzle/                  migrations geradas
 drizzle.config.ts
 Dockerfile
@@ -42,7 +56,8 @@ docker-compose.yml
 docs                      PRODUCT.md, ARCHITECTURE.md
 ```
 
-- Padrão Nest CLI: um módulo por domínio (`nest g resource`).
+- Padrão Nest CLI: um módulo por domínio (`nest g resource`), domínio dentro do grupo.
+- Prompt de IA em `<flow>.prompt.ts`, separado do código do flow.
 - ESM: import relativo com `.js`.
 - Body validado com `ZodValidationPipe` + schema `drizzle-zod` em `dto/`. Param uuid → `ParseUUIDPipe`. Falha → `400 { code: 'INVALID_INPUT', message, issues }`.
 - Erro pro usuário: exception do Nest com `{ code, message }` (`code` em `SCREAMING_SNAKE`, `message` em inglês pra log). Front traduz pelo `code`.
@@ -59,7 +74,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Fixo (sistema, mesa, usuário, ids, relações) → colunas.
 - Definido pelo usuário (peças e layout da estrutura, valores do recurso) → `jsonb`.
 - Valores do recurso validados por Zod montado em runtime a partir da estrutura.
-- Migrations: `drizzle-kit generate` + `migrate`, versionadas. `push` só local. Produção aplica com o migrator do `drizzle-orm` (`src/database/migrate.ts`, sem `drizzle-kit`).
+- Migrations: `drizzle-kit generate` + `migrate`, versionadas. `push` só local. Produção aplica com o migrator do `drizzle-orm` (`src/core/database/migrate.ts`, sem `drizzle-kit`).
 
 ## Auth
 
@@ -70,9 +85,9 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Cadastro com email existente → `422 USER_ALREADY_EXISTS` (hook `before` em `auth.ts`). Sem ele, Better Auth responde sucesso genérico e não envia email.
 - `users` = pessoa. `accounts` = forma de login (1 por provedor). `sessions`, `verifications`.
 - Mesmo email verificado em outro provedor → mesma `users`.
-- `users.role`: `COMMON` (padrão) | `SYSTEM`. `SYSTEM` só via seed (`src/database/seed.ts`). Nenhuma rota altera `role` (`input: false`).
-- `users.locale`: idioma da interface (`en` padrão | `pt-BR` | `zh-CN` | `es`, `auth/locales.ts`). Additional field `input: true`: vai no sign-up e em `/api/auth/update-user`; sem valor na criação (ex.: login social) → `Accept-Language` (`databaseHooks.user.create.before`). Não afeta conteúdo do jogo.
-- Emails de auth (verificação, reset) no idioma do usuário (`auth/auth-emails.ts`).
+- `users.role`: `COMMON` (padrão) | `SYSTEM`. `SYSTEM` só via seed (`src/core/database/seed.ts`). Nenhuma rota altera `role` (`input: false`).
+- `users.locale`: idioma da interface (`en` padrão | `pt-BR` | `zh-CN` | `es`, `core/auth/locales.ts`). Additional field `input: true`: vai no sign-up e em `/api/auth/update-user`; sem valor na criação (ex.: login social) → `Accept-Language` (`databaseHooks.user.create.before`). Não afeta conteúdo do jogo.
+- Emails de auth (verificação, reset) no idioma do usuário (`core/auth/auth-emails.ts`).
 
 ## Imagens
 
@@ -159,11 +174,11 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Jogo solo por enquanto: rotas de geração só do dono, com a key dele.
 - `OpenRouterClient.chat` = chat completions (formato OpenAI, `tools`, `tool_choice`). `401` → `400` (key recusada), `402` → `400` (sem créditos), `429` → `429`, resto → `502` com a mensagem da OpenRouter. `chatStream` = mesmo request com `stream: true` (SSE); repassa os argumentos do tool call conforme chegam.
 - `AgentRunner`: `reply` (loop de tools, máx. 6 passos; o último força `tool_choice: 'none'`) e `submit` (saída estruturada: obriga a chamar uma tool cujo input é o resultado, validado por Zod; inválido volta pra IA com o erro, máx. 3 tentativas). `submitEach` = `submit` em stream para resultado `{ lista: [...] }`: cada item fechado (`closedItemsOf`) é validado sozinho e entregue na hora; item inválido é pulado; nenhum válido → volta pra IA com o erro (máx. 3). Erro de Zod ou `HttpException` numa tool volta pra IA; outro erro sobe. `submit` e `submitEach` (tarefas do onboarding) pedem `reasoning: { effort: 'low' }`; `reply` (narração) usa o padrão do modelo. Validação tolerante (`tolerantParse`): falhou o Zod → ajusta o que dá (texto longo cortado na última palavra inteira por `shortened`, lista com itens a mais cortada, número fora do intervalo vira o limite) e valida de novo; só volta pra IA se ainda falhar. Log por chamada: `nome levou Xms em N tentativa(s)`; falha final → `warn`.
-- Tools (`ai/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
-- `system-context.ts`: system, structures, campanha e ficha em texto compacto (label, nunca id). Campo descrito com tipo e tags (`@slug: descrição`); estrutura com suas tags.
-- Stream (`common/ndjson.ts`, `streamLines`): `application/x-ndjson`, um JSON por linha. Erro antes da 1ª linha → resposta de erro normal; depois → linha `{ error: { code, message } }` e fecha.
-- Interrupção: `worlds`, `structures`, `population` e `session-zero/questions` (system e rascunho) usam `closedSignal(response)` (`common/closed-signal.ts`): cliente fecha a conexão antes da resposta → aborta com `HttpException` 499. Sinal vai em `AiCredentials.signal` (`credentialsOf(userId, signal)`) até o `fetch` do OpenRouter (`chat`/`chatStream`); flow checa antes de gravar (`worlds` não salva `options`; `population` manda as fichas em stream mas só grava no fim, com ganchos, então interrompida não grava nada). Stream com conexão fechada não escreve linha de erro.
-- Flows (`ai/flows/`):
+- Tools (`ai/play/tools/`, `aiTool` + schema Zod → JSON Schema via `z.toJSONSchema`) chamam os services de domínio com o `userId`: `list_characters` (fichas da structure de actors + quem controla), `read_sheet` (valores como `Label: valor`, só fields simples).
+- `ai/context/describe.ts`: system, structures, campanha e ficha em texto compacto (label, nunca id). Campo descrito com tipo e tags (`@slug: descrição`); estrutura com suas tags.
+- Stream (`core/common/ndjson.ts`, `streamLines`): `application/x-ndjson`, um JSON por linha. Erro antes da 1ª linha → resposta de erro normal; depois → linha `{ error: { code, message } }` e fecha.
+- Interrupção: `worlds`, `structures`, `population` e `session-zero/questions` (system e rascunho) usam `closedSignal(response)` (`core/common/closed-signal.ts`): cliente fecha a conexão antes da resposta → aborta com `HttpException` 499. Sinal vai em `AiCredentials.signal` (`credentialsOf(userId, signal)`) até o `fetch` do OpenRouter (`chat`/`chatStream`); flow checa antes de gravar (`worlds` não salva `options`; `population` manda as fichas em stream mas só grava no fim, com ganchos, então interrompida não grava nada). Stream com conexão fechada não escreve linha de erro.
+- Flows (`ai/building/`, `ai/play/`):
   - `POST /api/ai/campaign-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem system. Não salva.
 - Flows em `/api/ai/systems/:systemId/`:
   - `POST campaign-start` → IA cria campanha local no mundo da system (contexto: system + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
@@ -181,9 +196,9 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `field_types` = tipos de field (`id` = slug do tipo, `name`, `icon`, `description`, `position`). `GET /api/fields` ordenado por `position`.
 - `templates` = templates de system (`id` slug, `name`, `summary`, `icon`, `color`, `position`). `template_categories` = categorias do template (PK `(template_id, position)`, `name`, `icon`, cascade).
 - `GET /api/templates` → templates ordenados por `position`, cada um com `categories: [{ name, icon }]`.
-- Só leitura. Dados vêm de `src/database/seed.ts`: upsert por `id`, categorias recriadas.
+- Só leitura. Dados vêm de `src/core/database/seed.ts`: upsert por `id`, categorias recriadas.
 - Catálogo estático (prefixo `catalog_`, só seed escreve, sem rota; leitura via `CatalogService`): `catalog_themes` (`id` identity, `name` unique), `catalog_species` (`id` do arquivo, `name`, `category`), `catalog_species_themes` (PK `(species_id, theme_id)`, cascade nos dois, índice em `theme_id`).
-- Seeds em `src/catalog/` (`themes.seed.ts`, `species.seed.ts`). Fontes em `src/database/seeds/` (copiadas pro `dist` via assets do `nest-cli.json`): `themes.txt` (nomes separados por vírgula) e `species.json` (`{ species: [{ id, name, category, themes[] }] }`). `seed.ts` chama `seedThemes` e depois `seedSpecies`: só adiciona (tema, espécie por `id` e vínculo novos); nunca atualiza nem apaga. Diff em memória, só grava o que é novo, lotes de 5000. Tema citado na espécie e ausente em `themes.txt` → sem vínculo.
+- Seeds em `src/onboarding/catalog/` (`themes.seed.ts`, `species.seed.ts`). Fontes em `src/core/database/seeds/` (copiadas pro `dist` via assets do `nest-cli.json`): `themes.txt` (nomes separados por vírgula) e `species.json` (`{ species: [{ id, name, category, themes[] }] }`). `seed.ts` chama `seedThemes` e depois `seedSpecies`: só adiciona (tema, espécie por `id` e vínculo novos); nunca atualiza nem apaga. Diff em memória, só grava o que é novo, lotes de 5000. Tema citado na espécie e ausente em `themes.txt` → sem vínculo.
 
 ## Contrato
 

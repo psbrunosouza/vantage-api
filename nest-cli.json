@@ -5,8 +5,8 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "assets": [
-      "database/seeds/themes.json",
-      "database/seeds/species.json"
+      "core/database/seeds/themes.json",
+      "core/database/seeds/species.json"
     ]
   }
 }

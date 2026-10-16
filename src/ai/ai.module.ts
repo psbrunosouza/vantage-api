@@ -1,26 +1,28 @@
 import { Module } from '@nestjs/common';
-import { CampaignsModule } from '../campaigns/campaigns.module.js';
-import { CatalogModule } from '../catalog/catalog.module.js';
-import { SystemsModule } from '../systems/systems.module.js';
-import { MembersModule } from '../members/members.module.js';
-import { PlaySessionsModule } from '../play-sessions/play-sessions.module.js';
-import { ResourcesModule } from '../resources/resources.module.js';
-import { StructuresModule } from '../structures/structures.module.js';
-import { SystemDraftsModule } from '../system-drafts/system-drafts.module.js';
-import { TagsModule } from '../tags/tags.module.js';
-import { AgentRunner } from './agent-runner.js';
-import { AiKeyCipher } from './ai-key.cipher.js';
-import { AiController } from './ai.controller.js';
-import { AiService } from './ai.service.js';
-import { CampaignStartFlow } from './flows/campaign-start.flow.js';
-import { NarrationFlow } from './flows/narration.flow.js';
-import { PopulationFlow } from './flows/population.flow.js';
-import { SessionZeroQuestionsFlow } from './flows/session-zero-questions.flow.js';
-import { StructureProposalsFlow } from './flows/structure-proposals.flow.js';
-import { CampaignOptionsFlow } from './flows/campaign-options.flow.js';
-import { SystemWorldsFlow } from './flows/system-worlds.flow.js';
-import { OpenRouterClient } from './openrouter.client.js';
-import { WorldSources } from './world-source.js';
+import { CampaignsModule } from '../story/campaigns/campaigns.module.js';
+import { CatalogModule } from '../onboarding/catalog/catalog.module.js';
+import { SystemsModule } from '../system/systems/systems.module.js';
+import { MembersModule } from '../system/members/members.module.js';
+import { PlaySessionsModule } from '../story/play-sessions/play-sessions.module.js';
+import { ResourcesModule } from '../model/resources/resources.module.js';
+import { StructuresModule } from '../model/structures/structures.module.js';
+import { SystemDraftsModule } from '../onboarding/system-drafts/system-drafts.module.js';
+import { TagsModule } from '../model/tags/tags.module.js';
+import { AgentRunner } from './runtime/agent-runner.js';
+import { AiKeyCipher } from './settings/ai-key.cipher.js';
+import { BuildingController } from './building/building.controller.js';
+import { PlayController } from './play/play.controller.js';
+import { AiSettingsController } from './settings/ai-settings.controller.js';
+import { AiService } from './settings/ai.service.js';
+import { ArcStartFlow } from './play/arc-start/arc-start.flow.js';
+import { NarrationFlow } from './play/narration/narration.flow.js';
+import { PopulationFlow } from './building/population/population.flow.js';
+import { SessionZeroFlow } from './building/session-zero/session-zero.flow.js';
+import { StructuresFlow } from './building/structures/structures.flow.js';
+import { PitchesFlow } from './building/pitches/pitches.flow.js';
+import { DraftPitchesFlow } from './building/pitches/draft-pitches.flow.js';
+import { OpenRouterClient } from './runtime/openrouter.client.js';
+import { WorldSources } from './context/world-source.js';
 
 @Module({
   imports: [
@@ -34,19 +36,19 @@ import { WorldSources } from './world-source.js';
     CatalogModule,
     SystemDraftsModule,
   ],
-  controllers: [AiController],
+  controllers: [AiSettingsController, BuildingController, PlayController],
   providers: [
     AiService,
     AiKeyCipher,
     OpenRouterClient,
     AgentRunner,
-    CampaignOptionsFlow,
-    CampaignStartFlow,
+    PitchesFlow,
+    ArcStartFlow,
     NarrationFlow,
-    StructureProposalsFlow,
+    StructuresFlow,
     PopulationFlow,
-    SessionZeroQuestionsFlow,
-    SystemWorldsFlow,
+    SessionZeroFlow,
+    DraftPitchesFlow,
     WorldSources,
   ],
   exports: [AiService],
