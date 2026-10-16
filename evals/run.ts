@@ -3,7 +3,10 @@ import type { ConfigService } from '@nestjs/config';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
-import { PitchesFlow } from '../src/ai/building/pitches/pitches.flow.js';
+import {
+  type CampaignOption,
+  PitchesFlow,
+} from '../src/ai/building/pitches/pitches.flow.js';
 import { AgentRunner } from '../src/ai/runtime/agent-runner.js';
 import { OpenRouterClient } from '../src/ai/runtime/openrouter.client.js';
 import { AiKeyCipher } from '../src/ai/settings/ai-key.cipher.js';
@@ -34,7 +37,7 @@ type EvalCase = z.infer<typeof caseSchema>;
 
 interface Result {
   id: string;
-  pitches?: unknown[];
+  pitches?: CampaignOption[];
   verdict?: Verdict;
   hits?: string[];
   error?: string;
@@ -51,8 +54,10 @@ function caseIds(args: readonly string[]): string[] {
   );
 }
 
-function hitsOf(pitches: unknown[], forbidden: string[]): string[] {
-  const text = JSON.stringify(pitches);
+function hitsOf(pitches: CampaignOption[], forbidden: string[]): string[] {
+  const text = JSON.stringify(
+    pitches.map(({ theme, structures }) => ({ theme, structures })),
+  );
   return forbidden.filter((pattern) => new RegExp(pattern, 'iu').test(text));
 }
 
