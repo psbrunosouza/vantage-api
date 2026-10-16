@@ -27,6 +27,7 @@ import type {
   WorldStructure,
 } from '../../context/world-source.js';
 import { PROMPT } from './population.prompt.js';
+import { describeProfile } from '../../context/genre-kits.js';
 
 const RECORDS = { min: 2, max: 3 };
 const REQUESTED = 4;
@@ -103,18 +104,27 @@ export class PopulationFlow {
     onRecords: (records: NewResource[]) => void,
     signal?: AbortSignal,
   ): Promise<Population> {
-    const [credentials, system, campaign, structures, resources, fieldTags] =
-      await Promise.all([
-        this.aiService.credentialsOf(userId, signal),
-        source.system(),
-        source.campaign(),
-        source.structures(),
-        source.resources(),
-        source.fieldTags(),
-      ]);
+    const [
+      credentials,
+      system,
+      profile,
+      campaign,
+      structures,
+      resources,
+      fieldTags,
+    ] = await Promise.all([
+      this.aiService.credentialsOf(userId, signal),
+      source.system(),
+      source.profile(),
+      source.campaign(),
+      source.structures(),
+      source.resources(),
+      source.fieldTags(),
+    ]);
 
     const context = [
       describeSystem(system, structures, fieldTags),
+      describeProfile(profile),
       campaign ? describeCampaign(campaign) : null,
       describeRecords(structures, resources),
     ]

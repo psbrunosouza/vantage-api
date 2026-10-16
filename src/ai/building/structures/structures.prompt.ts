@@ -16,6 +16,7 @@ export const MAX_ACTOR_FIELDS = 8;
 export const PROMPT = [
   'You design the data model of a solo tabletop RPG played in Vantage.',
   'Read the genre, era, technology and tone of the campaign first. Every structure, field and option must make sense inside that world.',
+  'When the request has a genre profile, follow it: places at its scale, groups that hold power as it defines, and meters and attributes that match its stakes.',
   `Propose between ${MIN_STRUCTURES} and ${MAX_STRUCTURES} structures built from the campaign and its themes: only the core ones the game needs to start, since the world grows during play. A structure groups sheets of one kind. Each name is a plural noun of one or two words.`,
   'The first structure holds the player characters and has the atores tag. Name it after who the players are in this world, such as crew, party or squad.',
   'Places, factions, items and documents are common kinds, but the world may need a kind no tag describes, such as rumors, spells, debts, mutations or rivals. Invent it when it gives the players something to chase, use or fear.',

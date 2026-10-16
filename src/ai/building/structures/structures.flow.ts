@@ -16,6 +16,7 @@ import {
   MAX_ACTOR_FIELDS,
   PROMPT,
 } from './structures.prompt.js';
+import { describeProfile } from '../../context/genre-kits.js';
 
 const FIELD_TYPES = Object.keys(AI_FIELD_SIZES) as [
   keyof typeof AI_FIELD_SIZES,
@@ -131,10 +132,11 @@ export class StructuresFlow {
     onProposal: (proposal: StructureProposal) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    const [credentials, system, campaign, structureTags, fieldTags] =
+    const [credentials, system, profile, campaign, structureTags, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId, signal),
         source.system(),
+        source.profile(),
         source.campaign(),
         source.structureTags(),
         source.fieldTags(),
@@ -157,6 +159,7 @@ export class StructuresFlow {
             `System: ${system.name}`,
             `Campaign pitch: ${system.description ?? 'none'}`,
             describeMoods(system.moods),
+            describeProfile(profile),
             `Themes: ${dto.themes.join(', ') || 'none'}`,
             campaign ? describeCampaign(campaign) : null,
             dto.structures.length > 0

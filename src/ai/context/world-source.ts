@@ -23,6 +23,8 @@ import { SystemDraftsService } from '../../onboarding/system-drafts/system-draft
 import type { FieldTag } from '../../model/tags/field-tags.schema.js';
 import type { StructureTag } from '../../model/tags/structure-tags.schema.js';
 import { TagsService, slugify } from '../../model/tags/tags.service.js';
+import type { GenreProfile } from '../../world/worlds/genre-profile.js';
+import { WorldsService } from '../../world/worlds/worlds.service.js';
 
 export type WorldSystem = Pick<
   System,
@@ -54,6 +56,7 @@ export interface NewResource {
 
 export interface WorldSource {
   system(): Promise<WorldSystem>;
+  profile(): Promise<GenreProfile | null>;
   campaign(): Promise<Campaign | null>;
   structures(): Promise<WorldStructure[]>;
   resources(): Promise<WorldResource[]>;
@@ -80,6 +83,7 @@ export class WorldSources {
     private readonly resourcesService: ResourcesService,
     private readonly tagsService: TagsService,
     private readonly systemDraftsService: SystemDraftsService,
+    private readonly worldsService: WorldsService,
   ) {}
 
   async ofSystem(userId: string, systemId: string): Promise<WorldSource> {
@@ -87,6 +91,8 @@ export class WorldSources {
 
     return {
       system: () => this.systemsService.findOne(userId, systemId),
+      profile: async () =>
+        (await this.worldsService.find(userId, systemId))?.profile ?? null,
       campaign: () => this.campaignsService.find(userId, systemId),
       structures: () => this.structuresService.findAll(userId, systemId),
       resources: () => this.resourcesService.findAll(userId, systemId),
@@ -147,6 +153,7 @@ export class WorldSources {
         mainDie: slot.system.mainDie ?? null,
         moods: slot.system.moods ?? [],
       }),
+      profile: async () => slot.system.profile ?? null,
       campaign: async () => null,
       structures: async () =>
         draftStructures(slot.world.structures, structureTags),

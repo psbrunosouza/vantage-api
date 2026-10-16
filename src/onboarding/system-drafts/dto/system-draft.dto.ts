@@ -4,8 +4,11 @@ import { createSystemSchema } from '../../../system/systems/dto/create-system.dt
 import { sessionZeroQuestionSchema } from '../../../story/session-zero/dto/replace-questions.dto.js';
 import { createStructureSchema } from '../../../model/structures/dto/create-structure.dto.js';
 import { createTagSchema } from '../../../model/tags/dto/create-tag.dto.js';
+import { genreProfileSchema } from '../../../world/worlds/genre-profile.js';
 
-export const draftSystemSchema = createSystemSchema.partial();
+export const draftSystemSchema = createSystemSchema
+  .partial()
+  .extend({ profile: genreProfileSchema.nullable().optional() });
 
 export const draftTagSchema = createTagSchema.extend({ id: z.uuid() });
 
@@ -27,7 +30,9 @@ export const draftWorldSchema = z.object({
 });
 
 export const draftOptionSchema = z.object({
-  option: campaignOptionSchema,
+  option: campaignOptionSchema.extend({
+    profile: genreProfileSchema.optional(),
+  }),
   world: draftWorldSchema.nullable().default(null),
 });
 

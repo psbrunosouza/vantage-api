@@ -9,6 +9,8 @@ import { StructuresService } from '../../../model/structures/structures.service.
 import { AgentRunner } from '../../runtime/agent-runner.js';
 import { AiService } from '../../settings/ai.service.js';
 import { describeCampaign, describeMoods } from '../../context/describe.js';
+import { describeProfile } from '../../context/genre-kits.js';
+import { WorldsService } from '../../../world/worlds/worlds.service.js';
 import type { ChatMessage } from '../../runtime/openrouter.client.js';
 import { listCharactersTool } from '../tools/list-characters.tool.js';
 import { readSheetTool } from '../tools/read-sheet.tool.js';
@@ -26,6 +28,7 @@ export class NarrationFlow {
     private readonly structuresService: StructuresService,
     private readonly resourcesService: ResourcesService,
     private readonly membersService: MembersService,
+    private readonly worldsService: WorldsService,
     private readonly runner: AgentRunner,
   ) {}
 
@@ -36,9 +39,10 @@ export class NarrationFlow {
   ): Promise<SessionEntry> {
     await this.systemsService.ensureOwner(userId, systemId);
 
-    const [credentials, system, campaign, entries] = await Promise.all([
+    const [credentials, system, world, campaign, entries] = await Promise.all([
       this.aiService.credentialsOf(userId),
       this.systemsService.findOne(userId, systemId),
+      this.worldsService.find(userId, systemId),
       this.campaignsService.find(userId, systemId),
       this.playSessionsService.findEntries(userId, systemId, sessionId),
     ]);
@@ -66,6 +70,7 @@ export class NarrationFlow {
           PROMPT,
           `System: ${system.name}. ${system.description ?? ''}`,
           describeMoods(system.moods),
+          describeProfile(world?.profile ?? null),
           describeCampaign(campaign),
         ]
           .filter((part) => part !== null)

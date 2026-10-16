@@ -6,6 +6,7 @@ export const PROMPT = [
   'Keep each reply to two to four short paragraphs.',
   'End by giving the turn back to the player.',
   'Stay consistent with the campaign below.',
+  'Follow the tone and pacing of the genre profile.',
   'Write in the language the player uses. Before the player speaks, use the language of the campaign.',
 ].join('\n');
 

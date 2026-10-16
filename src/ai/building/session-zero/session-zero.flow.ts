@@ -16,6 +16,7 @@ import {
 import type { WorldSource } from '../../context/world-source.js';
 import { worldOf } from '../population/population.flow.js';
 import { QUESTIONS, PROMPT } from './session-zero.prompt.js';
+import { describeProfile } from '../../context/genre-kits.js';
 
 const title = z
   .string()
@@ -80,10 +81,11 @@ export class SessionZeroFlow {
     onQuestion: (question: SessionZeroQuestionDto) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    const [credentials, system, campaign, structures, fieldTags] =
+    const [credentials, system, profile, campaign, structures, fieldTags] =
       await Promise.all([
         this.aiService.credentialsOf(userId, signal),
         source.system(),
+        source.profile(),
         source.campaign(),
         source.structures(),
         source.fieldTags(),
@@ -102,6 +104,7 @@ export class SessionZeroFlow {
           role: 'user',
           content: [
             describeSystem(system, structures, fieldTags),
+            describeProfile(profile),
             campaign ? describeCampaign(campaign) : null,
             actors
               ? `Player characters become sheets of ${actors.name} with these fields: ${describeFields(actors.fields, fieldTags)}`

@@ -34,6 +34,7 @@ src/
   system/                 systems, members, invites, avatar
   model/                  structures, fields, tags, templates, resources, links
   story/                  campaigns, play-sessions, session-zero
+  world/                  worlds
   onboarding/             system-drafts, catalog
   <grupo>/<domínio>/
     <domínio>.module.ts
@@ -45,7 +46,7 @@ src/
     ai.module.ts
     settings/             AiSettingsController, AiService, chave cifrada
     runtime/              OpenRouterClient, AgentRunner, aiTool, KeyedLimiter, tolerantParse, closedItemsOf
-    context/              WorldSource, describe*, layout e valores de field, STRUCTURE_ICONS
+    context/              WorldSource, describe*, genre-kits, layout e valores de field, STRUCTURE_ICONS
     building/             BuildingController; flows de criação do mundo (system e rascunho)
       <flow>/             <flow>.flow.ts, <flow>.prompt.ts, dto, spec
     play/                 PlayController; arc-start, narration, tools/
@@ -115,7 +116,7 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - `status`: `incomplete` | `complete`. `system_id` preenchido no commit.
 - Seções em `jsonb`: `progress` (estado do front para retomar), `system`, `options` (3 campanhas `{ option, world }`), `structure_tags`, `field_tags`, `structures`, `resources`, `questions`. Ids de estruturas, registros e tags já são uuid e entram iguais no commit.
 - Rotas em `/api/system-drafts`: `GET` (incompletos), `GET tags` (tags globais), `GET/PATCH/DELETE :id`, `POST` (cria), `POST :id/commit` (transação: system + membro dono, tags, estruturas + links, registros, sessão zero; marca `complete`).
-- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (NDJSON: 3 campanhas em paralelo, só sinopse, uma `CampaignOption` por linha na ordem em que ficam prontas; no fim grava `options` nessa ordem com `world: null`; todas falham → erro normal), `structures` (NDJSON), `population` (NDJSON), `session-zero/questions` (NDJSON). Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
+- IA no rascunho em `/api/ai/system-drafts/:draftId/`: `worlds` (NDJSON: 3 campanhas em paralelo, sinopse e perfil de gênero, uma `CampaignOption` por linha na ordem em que ficam prontas; no fim grava `options` nessa ordem com `world: null`; todas falham → erro normal), `structures` (NDJSON), `population` (NDJSON), `session-zero/questions` (NDJSON). Flows leem por `WorldSource` (`ofSystem` banco, `ofDraft` rascunho), mesmos dados nos dois.
 - Sessão Zero (`session_zero_questions`; `/api/systems/:systemId/session-zero/questions`: `GET`, `PUT` substitui tudo): perguntas fixadas pelo dono, sem limite, em ordem (`position`), feitas a todo convidado novo. Pergunta: `prompt` (≤90, `SESSION_ZERO_PROMPT`; IA instruída: título = 1 frase curta, ≤90, corta situação e mantém pergunta; schema valida; título longo cortado por `tolerantParse`), `format` (`single` | `multiple` | `text` | `number`), `options` (só choices, 2–6, cada ≤120; `details` = significado por opção), `min`/`max` (só `number`, min < max), `reword` (Oráculo reconta na história de cada convidado; padrão `true`). Sem vínculo com campo da ficha: a ficha nasce depois, das respostas. `questionRows` normaliza (tira opções e limites que não cabem no formato) no `PUT` e no commit do rascunho. Migration 0027 converteu as antigas: com ≥2 significados em `details` → `single` com essas opções; resto → `text`. IA (`session-zero/questions`, system e rascunho; NDJSON via `submitEach`, uma pergunta por linha, corta depois de 6): 3–6 perguntas indiretas e situacionais; sempre cobrem os obrigatórios (`REQUIRED`: nome, background, personalidade, aparência, com descrição); `POSSIBILITIES` = 7 grupos opcionais (identidade e origem, psicologia, capacidades, papel e sociedade, relações, recursos, desenvolvimento narrativo) como ideias, não checklist: IA usa quantos fizerem sentido e pode ir além; respostas alimentam a ficha criada depois; formato novo (`questionOf`).
 - Chamadas ao OpenRouter: no máximo 8 simultâneas por key (`KeyedLimiter`), resto em fila.
 
@@ -179,13 +180,20 @@ docs                      PRODUCT.md, ARCHITECTURE.md
 - Stream (`core/common/ndjson.ts`, `streamLines`): `application/x-ndjson`, um JSON por linha. Erro antes da 1ª linha → resposta de erro normal; depois → linha `{ error: { code, message } }` e fecha.
 - Interrupção: `worlds`, `structures`, `population` e `session-zero/questions` (system e rascunho) usam `closedSignal(response)` (`core/common/closed-signal.ts`): cliente fecha a conexão antes da resposta → aborta com `HttpException` 499. Sinal vai em `AiCredentials.signal` (`credentialsOf(userId, signal)`) até o `fetch` do OpenRouter (`chat`/`chatStream`); flow checa antes de gravar (`worlds` não salva `options`; `population` manda as fichas em stream mas só grava no fim, com ganchos, então interrompida não grava nada). Stream com conexão fechada não escreve linha de erro.
 - Flows (`ai/building/`, `ai/play/`):
-  - `POST /api/ai/campaign-options` (`{ direction?, moods? }`) → 3 sistemas `{ name, theme }`. Flow sorteia 3 sets disjuntos de 3–5 temas de `catalog_themes` (`CatalogService.randomThemes`, `order by random()`); pra cada set a IA cria 5 nomes (uma palavra ou duas com "&") misturando os temas do set e escolhe o melhor. `direction` tem prioridade sobre os sets. Sem system. Não salva.
+  - `POST /api/ai/campaign-options` (`{ theme?, direction?, moods? }`) → 3 campanhas em paralelo `{ theme, structures, profile }`: `theme` = sinopse, `structures` = 5 nomes com ícone, `profile` = perfil de gênero (ver Worlds). Sem `theme` → 1 tema sorteado de `catalog_themes` por campanha (`CatalogService.randomThemes`). Sem system. Não salva.
 - Flows em `/api/ai/systems/:systemId/`:
   - `POST campaign-start` → IA cria campanha local no mundo da system (contexto: system + structures), `replace` da campanha, folder com o título, sessão dentro e abertura (`brief.opening`) como primeira narração IA. Devolve `{ campaign, session, opening }`.
   - `POST structures` (`{ themes, structures, kept?, replaced? }`) → NDJSON, uma proposta `{ name, icon, tagIds, fields }` por linha conforme a IA gera (3–4 estruturas, 2–4 campos cada, até 8 na de `atores`; campos além do teto cortados). `kept` (`{ name, tags }`, travadas no front) nunca voltam; com `replaced` (`{ name, fields }`, na ordem) a IA gera exatamente essa quantidade de novas, uma por substituída, diferentes das travadas e das substituídas; `fields` = campos travados da substituída, que entram primeiro na nova (mesmo id, sem repetir label) e o resto é gerado abaixo. Não salva.
   - `POST population` (`{ replace?, request? }`) → NDJSON: uma linha `{ records }` por structure assim que a IA termina (fichas com `id` já definido, valores ainda sem `parseResourceValues`), última linha `{ resources }` (gravado; mesmos `id`s, `NewResource.id` → `ResourcesService.create(..., id)` / `replacedResources`). Gera 2–3 fichas por structure, inclusive a de `atores` (personagens prontos pra jogar); `request` gera no máx. 4. Contexto lista fichas existentes com os valores (`- Nome (Estrutura)` + `  Campo: valor` por linha). Relações entre fichas (amizade, aliança, neutro, rivalidade, ódio) só em texto, nos campos de texto (principalmente `descricao`). `replace` refaz essas fichas por structure. Salva via `WorldSource.replaceResources`.
   - `POST play-sessions/:sessionId/narration` → IA narra e salva entrada (`kind: 'narrator'`, `source: 'ai'`, `user_id` nulo). Exige `ai_narrator` e campanha (`400`). Contexto: campanha + últimas 30 entradas (IA = assistant, player = `Nome: texto`). Sessão vazia → abertura.
 - Evals (`evals/`, fora do build): `npm run eval [id...]` roda o `PitchesFlow` real em cada caso de `evals/cases.json` (tema, moods, gênero esperado, regex `forbidden`); IA juíza (`evals/judge.ts`) dá nota 1–5 por pitch (`genre`, `tone`, `playable`, `leaks`) e `variety` do conjunto. Passa: média de `genre` ≥ 4 e nenhum `forbidden`; algum falhou → exit code 1. Tabela no console, relatório em `evals/reports/` (fora do git). Env próprio: `EVAL_API_KEY`, `EVAL_MODEL`, `EVAL_JUDGE_MODEL` (padrão = `EVAL_MODEL`). Rodada completa: 6 casos × (3 pitches + 1 juiz) = 24 chamadas.
+
+## Worlds
+
+- `worlds` = perfil de gênero da system. 1:1, PK `system_id` (cascade). `profile` (`jsonb`, `genreProfileSchema` em `world/worlds/genre-profile.ts`): slugs dos eixos `scale` (1), `power`, `threat`, `stakes` (1–2 cada), `pacing` (1); `era`, `tone` (1–3) e `avoid` (≤6) em texto no idioma da system.
+- Rotas em `/api/systems/:systemId/world`: `GET` (quem vê a system; sem perfil → `null`), `PUT` (`{ profile }`, só dono, upsert).
+- Rascunho: cada pitch traz o seu em `options[].option.profile` (opcional: pitches antigos não têm); escolhido e editado vai em `system.profile` (opcional, `null` = nenhum). Commit grava `worlds` quando há perfil.
+- IA: `ai/context/genre-kits.ts` = guia por slug (kits por eixo). Pitch escolhe os slugs (`describeAxes` no prompt). `describeProfile` injeta o guia em structures, population, session-zero, campaign-start e narração. Sem perfil → nada injetado.
 
 ## Campaigns
 

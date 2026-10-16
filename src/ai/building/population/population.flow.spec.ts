@@ -153,6 +153,7 @@ describe('PopulationFlow.run', () => {
         mainDie: null,
         moods: [],
       }),
+      profile: async () => null,
       campaign: async () => null,
       structures: async () => [places],
       resources: async () => [],

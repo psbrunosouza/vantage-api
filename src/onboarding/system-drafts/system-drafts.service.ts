@@ -17,6 +17,7 @@ import { sessionZeroQuestions } from '../../story/session-zero/session-zero.sche
 import { questionRows } from '../../story/session-zero/session-zero.service.js';
 import { structures } from '../../model/structures/structures.schema.js';
 import { fieldTags } from '../../model/tags/field-tags.schema.js';
+import { worlds } from '../../world/worlds/worlds.schema.js';
 import {
   structureTagLinks,
   structureTags,
@@ -160,6 +161,12 @@ export class SystemDraftsService {
     return this.db.transaction(async (tx) => {
       const system = await this.systemsService.insert(tx, ownerId, parsed.data);
       const systemId = system.id;
+
+      if (draft.system.profile) {
+        await tx
+          .insert(worlds)
+          .values({ systemId, profile: draft.system.profile });
+      }
 
       if (draft.structureTags.length > 0) {
         await tx.insert(structureTags).values(

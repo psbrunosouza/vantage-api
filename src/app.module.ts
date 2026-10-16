@@ -6,6 +6,7 @@ import { AiModule } from './ai/ai.module.js';
 import { createAuth } from './core/auth/auth.js';
 import { AvatarModule } from './system/avatar/avatar.module.js';
 import { CampaignsModule } from './story/campaigns/campaigns.module.js';
+import { WorldsModule } from './world/worlds/worlds.module.js';
 import { DATABASE, DatabaseModule } from './core/database/database.module.js';
 import { type Env, envSchema } from './env.js';
 import { FieldsModule } from './model/fields/fields.module.js';
@@ -49,6 +50,7 @@ import { TemplatesModule } from './model/templates/templates.module.js';
     PlaySessionsModule,
     MembersModule,
     CampaignsModule,
+    WorldsModule,
     InvitesModule,
     AiModule,
     FieldsModule,

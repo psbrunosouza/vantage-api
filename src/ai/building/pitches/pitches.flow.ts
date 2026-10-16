@@ -5,6 +5,7 @@ import { CatalogService } from '../../../onboarding/catalog/catalog.service.js';
 import { AgentRunner } from '../../runtime/agent-runner.js';
 import { type AiCredentials, AiService } from '../../settings/ai.service.js';
 import type { CampaignOptionsDto } from './campaign-options.dto.js';
+import { genreProfileSchema } from '../../../world/worlds/genre-profile.js';
 import { STRUCTURE_ICONS } from '../../context/structure-icons.js';
 import { PROMPT } from './pitches.prompt.js';
 
@@ -22,6 +23,7 @@ export const campaignOptionSchema = z.object({
     .array(structureSchema)
     .length(STRUCTURES)
     .describe('Structures that fit the world of the campaign.'),
+  profile: genreProfileSchema,
 });
 
 export type CampaignOption = z.infer<typeof campaignOptionSchema>;

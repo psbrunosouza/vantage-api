@@ -8,6 +8,7 @@ import { ResourcesModule } from '../model/resources/resources.module.js';
 import { StructuresModule } from '../model/structures/structures.module.js';
 import { SystemDraftsModule } from '../onboarding/system-drafts/system-drafts.module.js';
 import { TagsModule } from '../model/tags/tags.module.js';
+import { WorldsModule } from '../world/worlds/worlds.module.js';
 import { AgentRunner } from './runtime/agent-runner.js';
 import { AiKeyCipher } from './settings/ai-key.cipher.js';
 import { BuildingController } from './building/building.controller.js';
@@ -35,6 +36,7 @@ import { WorldSources } from './context/world-source.js';
     CampaignsModule,
     CatalogModule,
     SystemDraftsModule,
+    WorldsModule,
   ],
   controllers: [AiSettingsController, BuildingController, PlayController],
   providers: [
