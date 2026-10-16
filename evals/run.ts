@@ -1,24 +1,23 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import type { ConfigService } from '@nestjs/config';
+import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { z } from 'zod';
 import { PitchesFlow } from '../src/ai/building/pitches/pitches.flow.js';
 import { AgentRunner } from '../src/ai/runtime/agent-runner.js';
 import { OpenRouterClient } from '../src/ai/runtime/openrouter.client.js';
-import type {
-  AiCredentials,
-  AiService,
-} from '../src/ai/settings/ai.service.js';
+import { AiKeyCipher } from '../src/ai/settings/ai-key.cipher.js';
+import { AiService } from '../src/ai/settings/ai.service.js';
+import { users } from '../src/core/auth/auth.schema.js';
 import { LOCALES } from '../src/core/auth/locales.js';
+import { type Env, envSchema } from '../src/env.js';
 import type { CatalogService } from '../src/onboarding/catalog/catalog.service.js';
 import { judge, type Verdict } from './judge.js';
 
 const PASSING_GENRE = 4;
 
-const env = z
-  .object({
-    EVAL_API_KEY: z.string().min(1),
-    EVAL_MODEL: z.string().min(1),
-    EVAL_JUDGE_MODEL: z.string().min(1).optional(),
-  })
+const env = envSchema
+  .pick({ DATABASE_URL: true, AI_KEY_SECRET: true })
   .parse(process.env);
 
 const caseSchema = z.object({
@@ -39,6 +38,17 @@ interface Result {
   verdict?: Verdict;
   hits?: string[];
   error?: string;
+}
+
+function flag(args: readonly string[], name: string): string | undefined {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function caseIds(args: readonly string[]): string[] {
+  return args.filter(
+    (arg, index) => !arg.startsWith('--') && !args[index - 1]?.startsWith('--'),
+  );
 }
 
 function hitsOf(pitches: unknown[], forbidden: string[]): string[] {
@@ -73,6 +83,13 @@ function rowOf(result: Result) {
   };
 }
 
+const args = process.argv.slice(2);
+const email = flag(args, '--user');
+
+if (!email) {
+  throw new Error('Pass the account to use: npm run eval -- --user you@email');
+}
+
 const cases = z
   .array(caseSchema)
   .parse(
@@ -80,21 +97,37 @@ const cases = z
       await readFile(new URL('./cases.json', import.meta.url), 'utf8'),
     ),
   );
-const only = process.argv.slice(2);
+const only = caseIds(args);
 const selected =
   only.length > 0 ? cases.filter((item) => only.includes(item.id)) : cases;
 
-const runner = new AgentRunner(new OpenRouterClient());
-const credentials: AiCredentials = {
-  model: env.EVAL_MODEL,
-  apiKey: env.EVAL_API_KEY,
-};
-const judgeCredentials: AiCredentials = {
-  model: env.EVAL_JUDGE_MODEL ?? env.EVAL_MODEL,
-  apiKey: env.EVAL_API_KEY,
+const db = drizzle(env.DATABASE_URL);
+const [user] = await db
+  .select({ id: users.id })
+  .from(users)
+  .where(eq(users.email, email));
+
+if (!user) {
+  await db.$client.end();
+  throw new Error(`No user with the email ${email}`);
+}
+
+const openRouter = new OpenRouterClient();
+const aiService = new AiService(
+  db,
+  openRouter,
+  new AiKeyCipher({
+    get: () => env.AI_KEY_SECRET,
+  } as unknown as ConfigService<Env, true>),
+);
+const runner = new AgentRunner(openRouter);
+const credentials = await aiService.credentialsOf(user.id);
+const judgeCredentials = {
+  ...credentials,
+  model: flag(args, '--judge') ?? credentials.model,
 };
 const pitchesFlow = new PitchesFlow(
-  { credentialsOf: () => Promise.resolve(credentials) } as unknown as AiService,
+  aiService,
   { randomThemes: () => Promise.resolve([]) } as unknown as CatalogService,
   runner,
 );
@@ -102,7 +135,7 @@ const pitchesFlow = new PitchesFlow(
 async function evaluate(item: EvalCase): Promise<Result> {
   try {
     const pitches = await pitchesFlow.run(
-      'eval',
+      user.id,
       { theme: item.theme, moods: item.moods, direction: item.direction },
       item.locale,
     );
@@ -125,6 +158,7 @@ async function evaluate(item: EvalCase): Promise<Result> {
 const results = await Promise.all(selected.map(evaluate));
 const rows = results.map(rowOf);
 
+await db.$client.end();
 console.table(rows);
 
 const reports = new URL('./reports/', import.meta.url);
